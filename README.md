@@ -4,6 +4,10 @@ Web-based simulator jaringan dan cybersecurity. Lihat [CLAUDE.md](./CLAUDE.md) u
 
 ## Quick start
 
+**Windows, satu langkah**: isi `.env` (copy dari `.env.example`, minimal `DATABASE_URL` dan `JWT_SECRET`), lalu double-click `start.bat` (atau `powershell -File start.ps1`). Script ini otomatis install dependency, build image Docker sandbox/DVWA, push schema, seed data, nyalakan API+Web+network-engine, dan buka browser ke game-nya. Aman dijalankan berulang kali (setiap langkah idempotent).
+
+**Manual**:
+
 ```bash
 npm i -g pnpm
 pnpm install   # otomatis build packages/types & packages/cli-parser lewat postinstall
