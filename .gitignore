@@ -1,17 +1,51 @@
+# Dependencies
 node_modules/
 .pnpm-store/
+
+# Build output
 dist/
 build/
 .next/
+out/
+*.tsbuildinfo
+
+# Env & secrets
 .env
-.env.local
+.env.*
+!.env.example
+
+# Logs
 *.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
 .DS_Store
 Thumbs.db
+
+# Test / coverage
 coverage/
 .turbo/
-*.tsbuildinfo
+playwright-report/
+test-results/
+
+# Database
 apps/api/prisma/dev.db
+*.sqlite
+
+# Python (network-engine)
 __pycache__/
 *.pyc
 .venv/
+venv/
+*.egg-info/
+
+# Editor / IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# Docker volumes data (if bind-mounted locally)
+docker/**/data/
