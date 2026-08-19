@@ -5,6 +5,7 @@ import websocket from "@fastify/websocket";
 import rateLimit from "@fastify/rate-limit";
 import authPlugin from "./plugins/auth.plugin.js";
 import { authRoutes } from "./routes/auth.routes.js";
+import { networkRoutes } from "./routes/network.routes.js";
 import { terminalWebSocket } from "./websocket/terminal.ws.js";
 
 const app = Fastify({ logger: true });
@@ -23,6 +24,7 @@ await app.register(websocket);
 await app.register(authPlugin);
 
 await app.register(authRoutes);
+await app.register(networkRoutes);
 await app.register(terminalWebSocket);
 
 app.get("/api/health", async () => ({ status: "ok" }));

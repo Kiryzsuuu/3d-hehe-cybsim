@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import ReactFlow, {
   Background,
   Controls,
@@ -15,6 +15,7 @@ import "reactflow/dist/style.css";
 import { useNetworkStore } from "@/stores/networkStore";
 import DeviceNode, { type DeviceNodeData } from "./DeviceNode";
 import type { NodeType } from "@cybersim/types";
+import { checkReachability, type ReachabilityResult } from "@/lib/api";
 
 const NODE_TYPES = { device: DeviceNode };
 const DEVICE_TYPES: NodeType[] = ["router", "switch", "pc", "server", "firewall"];
@@ -58,6 +59,32 @@ export default function TopologyEditor() {
     addNode(type, position);
   };
 
+  const [source, setSource] = useState("");
+  const [target, setTarget] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [result, setResult] = useState<ReachabilityResult | null>(null);
+  const [checkError, setCheckError] = useState<string | null>(null);
+
+  const runCheck = async () => {
+    if (!source || !target) return;
+    setChecking(true);
+    setCheckError(null);
+    setResult(null);
+    try {
+      const res = await checkReachability(
+        nodes.map((n) => ({ id: n.id, type: n.type })),
+        edges,
+        source,
+        target
+      );
+      setResult(res);
+    } catch (err) {
+      setCheckError(err instanceof Error ? err.message : "Gagal menghubungi network engine");
+    } finally {
+      setChecking(false);
+    }
+  };
+
   return (
     <div className="flex h-[32rem] flex-col rounded-lg border border-gray-800">
       <div className="flex flex-wrap gap-2 border-b border-gray-800 p-2">
@@ -78,6 +105,46 @@ export default function TopologyEditor() {
             Hapus node terpilih
           </button>
         )}
+      </div>
+      <div className="flex flex-wrap items-center gap-2 border-b border-gray-800 p-2 text-xs">
+        <select
+          value={source}
+          onChange={(e) => setSource(e.target.value)}
+          className="rounded-md border border-gray-700 bg-gray-900 px-2 py-1 text-gray-300"
+        >
+          <option value="">Dari...</option>
+          {nodes.map((n) => (
+            <option key={n.id} value={n.id}>
+              {n.label}
+            </option>
+          ))}
+        </select>
+        <span className="text-gray-600">→</span>
+        <select
+          value={target}
+          onChange={(e) => setTarget(e.target.value)}
+          className="rounded-md border border-gray-700 bg-gray-900 px-2 py-1 text-gray-300"
+        >
+          <option value="">Ke...</option>
+          {nodes.map((n) => (
+            <option key={n.id} value={n.id}>
+              {n.label}
+            </option>
+          ))}
+        </select>
+        <button
+          onClick={runCheck}
+          disabled={!source || !target || checking}
+          className="rounded-md border border-gray-700 px-2 py-1 text-gray-300 hover:border-accent hover:text-accent disabled:opacity-40"
+        >
+          {checking ? "Memeriksa..." : "Cek Konektivitas"}
+        </button>
+        {result && (
+          <span className={result.reachable ? "text-green-400" : "text-red-400"}>
+            {result.reachable ? `✓ Terhubung (${result.path.join(" → ")})` : "✗ Tidak terhubung"}
+          </span>
+        )}
+        {checkError && <span className="text-red-400">{checkError}</span>}
       </div>
       <div className="flex-1">
         <ReactFlow

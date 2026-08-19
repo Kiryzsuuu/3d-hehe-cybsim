@@ -29,3 +29,22 @@ export function register(email: string, username: string, password: string) {
     body: JSON.stringify({ email, username, password }),
   });
 }
+
+export interface ReachabilityResult {
+  reachable: boolean;
+  path: string[];
+}
+
+export function checkReachability(
+  nodes: { id: string; type: string }[],
+  edges: { source: string; target: string }[],
+  source: string,
+  target: string
+) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("cybersim_token") : null;
+  return request<ReachabilityResult>("/api/network/reachability", {
+    method: "POST",
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify({ nodes, edges, source, target }),
+  });
+}
