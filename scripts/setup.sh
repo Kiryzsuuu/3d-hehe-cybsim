@@ -5,13 +5,16 @@ echo "==> Installing dependencies"
 pnpm install
 
 echo "==> Copying .env.example to .env (skipped if already exists)"
-[ -f .env ] || cp .env.example .env
+if [ ! -f .env ]; then
+  cp .env.example .env
+  echo "    Edit .env now: set DATABASE_URL to your MongoDB Atlas connection string and JWT_SECRET."
+fi
 
-echo "==> Starting MongoDB + Redis"
+echo "==> Starting Redis (MongoDB uses Atlas, configured via DATABASE_URL in .env)"
 docker-compose up -d
 
-echo "==> Waiting for MongoDB to be healthy"
-until docker exec cybersim-mongo mongosh --quiet --eval "rs.status().ok" > /dev/null 2>&1; do
+echo "==> Waiting for Redis to be healthy"
+until docker exec cybersim-redis redis-cli ping > /dev/null 2>&1; do
   sleep 1
 done
 

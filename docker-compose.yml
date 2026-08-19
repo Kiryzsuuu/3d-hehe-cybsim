@@ -1,22 +1,10 @@
+# MongoDB is not run here — this project connects to MongoDB Atlas via
+# DATABASE_URL in .env. Only Redis (session/cache) runs locally via Docker.
+#
+# To develop against a local MongoDB instead of Atlas, add a `mongo` service
+# back with a single-node replica set (Prisma's Mongo connector requires one)
+# and point DATABASE_URL at it.
 services:
-  mongo:
-    image: mongo:7
-    container_name: cybersim-mongo
-    restart: unless-stopped
-    command: ["--replSet", "rs0", "--bind_ip_all"]
-    ports:
-      - "27017:27017"
-    volumes:
-      - mongo_data:/data/db
-    healthcheck:
-      # Prisma's MongoDB connector requires a replica set (even single-node) to
-      # support transactions. This self-initiates it on first healthcheck run.
-      test: ["CMD-SHELL", "mongosh --quiet --eval \"try { rs.status().ok } catch (e) { rs.initiate({_id: 'rs0', members: [{_id: 0, host: 'localhost:27017'}]}) }\""]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-      start_period: 10s
-
   redis:
     image: redis:7-alpine
     container_name: cybersim-redis
@@ -32,5 +20,4 @@ services:
       retries: 10
 
 volumes:
-  mongo_data:
   redis_data:
