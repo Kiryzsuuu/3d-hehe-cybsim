@@ -44,10 +44,28 @@ if (-not (Test-CommandExists "docker")) {
     exit 1
 }
 
-try {
-    docker info *> $null
-} catch {
-    Write-Host "Docker Desktop doesn't seem to be running. Please start it, wait until the whale icon shows 'Running', then re-run this script." -ForegroundColor Red
+# Native commands don't throw catchable exceptions on nonzero exit, so check
+# $LASTEXITCODE directly instead of relying on try/catch (which only fires if
+# `docker` itself can't be found at all). Also drop ErrorActionPreference to
+# Continue just for this call: with it set to Stop, a native command's stderr
+# output becomes an uncaught terminating NativeCommandError instead of a
+# clean, controlled message here. Retry a few times since Docker Desktop's
+# engine can take 30-60s to accept connections even after it shows "Running".
+$prevEap = $ErrorActionPreference
+$ErrorActionPreference = "Continue"
+$dockerReady = $false
+$dockerInfoOutput = $null
+for ($i = 0; $i -lt 5; $i++) {
+    $dockerInfoOutput = docker info 2>&1
+    if ($LASTEXITCODE -eq 0) { $dockerReady = $true; break }
+    Start-Sleep -Seconds 3
+}
+$ErrorActionPreference = $prevEap
+
+if (-not $dockerReady) {
+    Write-Host "Docker Desktop doesn't seem to be reachable after several tries. Please start it, wait until the whale icon shows 'Running', then re-run this script." -ForegroundColor Red
+    Write-Host "Details from 'docker info':" -ForegroundColor Yellow
+    Write-Host $dockerInfoOutput
     exit 1
 }
 Write-Host "Docker: running"
