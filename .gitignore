@@ -10,6 +10,7 @@ build/
 Thumbs.db
 coverage/
 .turbo/
+*.tsbuildinfo
 apps/api/prisma/dev.db
 __pycache__/
 *.pyc

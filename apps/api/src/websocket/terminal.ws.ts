@@ -3,24 +3,26 @@ import { parseAndRun } from "@cybersim/cli-parser";
 import type { TerminalOutputEvent, JwtPayload } from "@cybersim/types";
 
 export async function terminalWebSocket(app: FastifyInstance) {
-  app.get("/ws/terminal", { websocket: true }, (connection, req) => {
+  // @fastify/websocket v9+ passes the raw ws WebSocket as the first argument
+  // (earlier versions wrapped it as `{ socket }`).
+  app.get("/ws/terminal", { websocket: true }, (socket, req) => {
     const token = (req.query as { token?: string })?.token;
     let payload: JwtPayload;
     try {
       if (!token) throw new Error("missing token");
       payload = app.jwt.verify(token);
     } catch {
-      connection.socket.send(JSON.stringify({ type: "error", data: "Unauthorized" } satisfies TerminalOutputEvent));
-      connection.socket.close();
+      socket.send(JSON.stringify({ type: "error", data: "Unauthorized" } satisfies TerminalOutputEvent));
+      socket.close();
       return;
     }
     const username = payload.username;
 
-    const send = (event: TerminalOutputEvent) => connection.socket.send(JSON.stringify(event));
+    const send = (event: TerminalOutputEvent) => socket.send(JSON.stringify(event));
 
     send({ type: "output", data: `Welcome, ${username}. Type "help" to get started.` });
 
-    connection.socket.on("message", (raw: Buffer) => {
+    socket.on("message", (raw: Buffer) => {
       let message: unknown;
       try {
         message = JSON.parse(raw.toString());

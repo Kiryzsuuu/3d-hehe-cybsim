@@ -41,7 +41,18 @@ export default function TerminalPanel() {
     term.loadAddon(fitAddon);
     term.loadAddon(new WebLinksAddon());
     term.open(containerRef.current);
-    fitAddon.fit();
+
+    // xterm's renderer isn't attached until after the browser commits this
+    // layout — calling fit() synchronously here throws "reading 'dimensions'"
+    // (most visible under React StrictMode's mount/unmount/remount in dev).
+    const safeFit = () => {
+      try {
+        fitAddon.fit();
+      } catch {
+        // renderer not ready yet or terminal already disposed — ignore
+      }
+    };
+    requestAnimationFrame(safeFit);
 
     term.writeln("CyberSim Terminal — type 'help' for commands");
     prompt();
@@ -75,11 +86,10 @@ export default function TerminalPanel() {
 
     xtermRef.current = term;
 
-    const onResize = () => fitAddon.fit();
-    window.addEventListener("resize", onResize);
+    window.addEventListener("resize", safeFit);
 
     return () => {
-      window.removeEventListener("resize", onResize);
+      window.removeEventListener("resize", safeFit);
       term.dispose();
     };
   }, []);
