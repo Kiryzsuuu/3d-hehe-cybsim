@@ -102,3 +102,11 @@ export function startScenario(slug: string) {
     headers: authHeader(),
   });
 }
+
+export function completeScenario(slug: string, score: number) {
+  return request<{ progress: ProgressEntry }>(`/api/scenarios/${slug}/complete`, {
+    method: "POST",
+    headers: authHeader(),
+    body: JSON.stringify({ score }),
+  });
+}

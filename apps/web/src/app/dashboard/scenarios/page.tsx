@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { listScenarios, startScenario, type ScenarioSummary } from "@/lib/api";
+import Link from "next/link";
+import { listScenarios, type ScenarioSummary } from "@/lib/api";
 
 const LEVEL_COLOR: Record<string, string> = {
   beginner: "text-green-400 border-green-800",
@@ -11,11 +11,9 @@ const LEVEL_COLOR: Record<string, string> = {
 };
 
 export default function ScenariosPage() {
-  const router = useRouter();
   const [scenarios, setScenarios] = useState<ScenarioSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [startingSlug, setStartingSlug] = useState<string | null>(null);
 
   useEffect(() => {
     listScenarios()
@@ -23,17 +21,6 @@ export default function ScenariosPage() {
       .catch((err) => setError(err instanceof Error ? err.message : "Gagal memuat skenario"))
       .finally(() => setLoading(false));
   }, []);
-
-  const onStart = async (slug: string) => {
-    setStartingSlug(slug);
-    try {
-      await startScenario(slug);
-      router.push("/dashboard");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Gagal memulai skenario");
-      setStartingSlug(null);
-    }
-  };
 
   return (
     <main className="min-h-screen px-4 py-8 md:px-8">
@@ -54,13 +41,12 @@ export default function ScenariosPage() {
               </span>
             </div>
             <p className="text-sm text-gray-400">{s.description}</p>
-            <button
-              onClick={() => onStart(s.slug)}
-              disabled={startingSlug === s.slug}
-              className="mt-auto self-start rounded-md border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:border-accent hover:text-accent disabled:opacity-50"
+            <Link
+              href={`/dashboard/scenarios/${s.slug}`}
+              className="mt-auto self-start rounded-md border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:border-accent hover:text-accent"
             >
-              {startingSlug === s.slug ? "Memulai..." : "Mulai Misi"}
-            </button>
+              Mulai Misi
+            </Link>
           </div>
         ))}
       </div>
