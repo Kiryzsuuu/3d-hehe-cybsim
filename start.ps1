@@ -15,6 +15,19 @@ $ErrorActionPreference = "Stop"
 $root = $PSScriptRoot
 Set-Location $root
 
+# Some environments (WSL integration, a leftover shell profile, an old
+# Docker Toolbox install, etc.) leave a Linux-style DOCKER_HOST
+# (unix:///var/run/docker.sock) sitting in the inherited process
+# environment. That overrides Docker Desktop's own Windows context
+# (npipe://./pipe/docker_engine) and makes every `docker` call fail with
+# "Cannot connect to the Docker daemon at unix:///var/run/docker.sock"
+# even while Docker Desktop is genuinely running. Clear it unconditionally
+# before touching Docker, regardless of where it came from.
+if ($env:DOCKER_HOST) {
+    Write-Host "Clearing inherited DOCKER_HOST ($env:DOCKER_HOST) so Docker Desktop's own Windows context is used instead." -ForegroundColor Yellow
+    Remove-Item Env:DOCKER_HOST -ErrorAction SilentlyContinue
+}
+
 function Write-Step($msg) {
     Write-Host ""
     Write-Host "==> $msg" -ForegroundColor Cyan
