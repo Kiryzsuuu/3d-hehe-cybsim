@@ -35,9 +35,33 @@ export default function TopologyEditor() {
     [nodes]
   );
 
+  const [result, setResult] = useState<ReachabilityResult | null>(null);
+
+  // Edges that lie on the last successfully-checked path get highlighted so
+  // the "packet flow" reads as a moving pulse along the actual route.
+  const pathEdgeKeys = useMemo(() => {
+    if (!result?.reachable) return new Set<string>();
+    const keys = new Set<string>();
+    for (let i = 0; i < result.path.length - 1; i++) {
+      keys.add(`${result.path[i]}->${result.path[i + 1]}`);
+      keys.add(`${result.path[i + 1]}->${result.path[i]}`);
+    }
+    return keys;
+  }, [result]);
+
   const flowEdges: Edge[] = useMemo(
-    () => edges.map((e) => ({ id: e.id, source: e.source, target: e.target, animated: true })),
-    [edges]
+    () =>
+      edges.map((e) => {
+        const onPath = pathEdgeKeys.has(`${e.source}->${e.target}`);
+        return {
+          id: e.id,
+          source: e.source,
+          target: e.target,
+          animated: true,
+          style: onPath ? { stroke: "#22d3ee", strokeWidth: 3 } : undefined,
+        };
+      }),
+    [edges, pathEdgeKeys]
   );
 
   const onConnect = useCallback(
@@ -62,7 +86,6 @@ export default function TopologyEditor() {
   const [source, setSource] = useState("");
   const [target, setTarget] = useState("");
   const [checking, setChecking] = useState(false);
-  const [result, setResult] = useState<ReachabilityResult | null>(null);
   const [checkError, setCheckError] = useState<string | null>(null);
 
   const runCheck = async () => {
