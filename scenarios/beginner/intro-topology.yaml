@@ -1,0 +1,18 @@
+id: intro-topology
+title: "Membangun Topologi Pertama"
+level: beginner
+description: >
+  Susun router dan switch di Network Topology editor, lalu sambungkan keduanya.
+objectives:
+  - id: obj-1
+    description: "Tambahkan 1 router dan 1 switch"
+    points: 10
+  - id: obj-2
+    description: "Sambungkan router ke switch"
+    points: 10
+  - id: obj-3
+    description: "Jalankan Cek Konektivitas dan pastikan hasilnya terhubung"
+    points: 15
+hints:
+  - "Buka halaman Network Topology dari dashboard."
+  - "Tarik garis dari titik bawah node ke titik atas node lain."

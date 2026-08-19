@@ -1,0 +1,14 @@
+id: recon-whoami
+title: "Reconnaissance Dasar"
+level: beginner
+description: >
+  Kenali environment Anda menggunakan perintah whoami dan ifconfig sebelum memulai misi lanjutan.
+objectives:
+  - id: obj-1
+    description: "Jalankan `whoami`"
+    points: 5
+  - id: obj-2
+    description: "Jalankan `ifconfig`"
+    points: 5
+hints:
+  - "Semua perintah terminal ada di whitelist — ketik `help` untuk melihat daftarnya."
