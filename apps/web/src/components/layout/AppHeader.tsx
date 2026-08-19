@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { clearSession, useRequireAuth } from "@/hooks/useAuth";
 
 const NAV_LINKS = [
+  { href: "/world", label: "🗺️ World" },
   { href: "/dashboard", label: "Dashboard" },
   { href: "/dashboard/scenarios", label: "Skenario" },
   { href: "/dashboard/rooms", label: "Room" },

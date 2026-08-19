@@ -22,8 +22,8 @@ export default function LandingPage() {
       </p>
       <div className="flex gap-4">
         {loggedIn === null ? null : loggedIn ? (
-          <Link href="/dashboard" className="rounded-md bg-accent px-5 py-2 font-medium text-black hover:opacity-90">
-            Ke Dashboard
+          <Link href="/world" className="rounded-md bg-accent px-5 py-2 font-medium text-black hover:opacity-90">
+            Masuk ke World 🗺️
           </Link>
         ) : (
           <>

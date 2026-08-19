@@ -12,6 +12,11 @@ interface Step {
 
 const STEPS: Step[] = [
   {
+    title: "0. World",
+    body: "Buka World untuk jalan-jalan di peta 3D dengan karakter Anda (WASD atau panah untuk bergerak). Dekati salah satu 'stasiun' di peta dan tekan E untuk masuk ke fiturnya — cara alternatif untuk berpindah menu selain lewat navbar di atas.",
+    cta: { href: "/world", label: "Buka World" },
+  },
+  {
     title: "1. Terminal",
     body: "Terminal di Dashboard adalah CLI simulasi. Ketik `help` untuk melihat daftar perintah yang tersedia (ping, whoami, ifconfig, show, dll). Setiap perintah divalidasi server-side lewat whitelist, jadi aman untuk dicoba-coba.",
     cta: { href: "/dashboard", label: "Buka Dashboard" },
