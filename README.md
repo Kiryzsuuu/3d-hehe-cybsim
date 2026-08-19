@@ -21,4 +21,4 @@ pnpm dev
 
 ## Status
 
-Phase 1 (Foundation) scaffolded: monorepo, auth (register/login/JWT), Xterm.js terminal over authenticated WebSocket with a whitelisted command parser, Prisma schema (User/Scenario/Progress), Docker Compose for Postgres+Redis, and a resource-limited/network-isolated sandbox service skeleton. Phases 2–5 (network topology editor, 3D viewer, scenario engine, DVWA sandbox, leaderboard) are not yet built.
+Phase 1 (Foundation) scaffolded: monorepo, auth (register/login/JWT), Xterm.js terminal over authenticated WebSocket with a whitelisted command parser, Prisma schema on MongoDB (User/Scenario/Progress, single-node replica set), Docker Compose for MongoDB+Redis, and a resource-limited/network-isolated sandbox service skeleton. Phases 2–5 (network topology editor, 3D viewer, scenario engine, DVWA sandbox, leaderboard) are not yet built.

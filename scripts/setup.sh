@@ -7,11 +7,11 @@ pnpm install
 echo "==> Copying .env.example to .env (skipped if already exists)"
 [ -f .env ] || cp .env.example .env
 
-echo "==> Starting PostgreSQL + Redis"
+echo "==> Starting MongoDB + Redis"
 docker-compose up -d
 
-echo "==> Waiting for Postgres to be healthy"
-until docker exec cybersim-postgres pg_isready -U user -d cybersim > /dev/null 2>&1; do
+echo "==> Waiting for MongoDB to be healthy"
+until docker exec cybersim-mongo mongosh --quiet --eval "rs.status().ok" > /dev/null 2>&1; do
   sleep 1
 done
 

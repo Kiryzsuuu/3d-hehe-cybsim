@@ -3,12 +3,12 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mongodb"
   url      = env("DATABASE_URL")
 }
 
 model User {
-  id           String     @id @default(uuid())
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
   email        String     @unique
   username     String     @unique
   passwordHash String
@@ -18,7 +18,7 @@ model User {
 }
 
 model Scenario {
-  id          String     @id @default(uuid())
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
   slug        String     @unique
   title       String
   level       String
@@ -29,9 +29,9 @@ model Scenario {
 }
 
 model Progress {
-  id           String    @id @default(uuid())
-  userId       String
-  scenarioId   String
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String    @db.ObjectId
+  scenarioId   String    @db.ObjectId
   status       String    @default("in_progress")
   score        Int       @default(0)
   completedAt  DateTime?
