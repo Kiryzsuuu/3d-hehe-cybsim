@@ -17,15 +17,16 @@ pnpm dev
 
 - Web: http://localhost:3000
 - API: http://localhost:3001
-- Network engine (opsional, Fase 2+): `cd packages/network-engine && pip install -r requirements.txt && uvicorn main:app --reload --port 8000`
+- Network engine (dibutuhkan untuk fitur "Cek Konektivitas" di Network Topology): `cd packages/network-engine && pip install -r requirements.txt && uvicorn main:app --reload --port 8000` — pastikan `.env` sudah di-load (butuh `NETWORK_ENGINE_SECRET` yang sama dengan punya `apps/api`)
 
 ## Status
 
 Verified end-to-end (real Playwright run: register → login → terminal command → live 2D/3D sync), not just typechecked.
 
 - **Phase 1 (Foundation)**: monorepo, auth (register/login/JWT backed by MongoDB Atlas + bcrypt), Xterm.js terminal over an authenticated WebSocket with a whitelisted command parser, Prisma schema on MongoDB (User/Scenario/Progress), Redis via Docker Compose, and a resource-limited/network-isolated sandbox service skeleton.
-- **Phase 2 (partial)**: `/dashboard/network` — a React Flow topology editor (add/connect/delete router, switch, pc, server, firewall nodes) synced live via a zustand store to a lazy-loaded Three.js 3D server rack viewer. Not yet built from Phase 2: Cisco IOS command parser, packet flow animation, physical cable simulator, GNS3/NetworkX-backed reachability checks wired into the UI (the FastAPI/NetworkX skeleton in `packages/network-engine` exists but isn't called yet).
-- **Not started**: Phase 3 (scenario/mission system), Phase 4 (DVWA sandbox, blue-team scoring, CTF flags), Phase 5 (leaderboard, achievements, CI/CD).
+- **Phase 2 (partial)**: `/dashboard/network` — a React Flow topology editor (add/connect/delete router, switch, pc, server, firewall nodes) synced live via a zustand store to a lazy-loaded Three.js 3D server rack viewer. A "Cek Konektivitas" control sends the topology through the backend to the FastAPI/NetworkX `network-engine` for a real graph reachability check, and the returned path renders as a highlighted animated edge (packet flow). Not yet built: Cisco IOS command parser, physical cable simulator, GNS3 integration.
+- **Phase 3 (partial)**: `/dashboard/scenarios` lists seeded missions (3 beginner scenarios) with a "Mulai Misi" button; the dashboard's Progress panel reads real per-user Progress records from MongoDB. Not yet built: objective auto-tracking (e.g. detecting a terminal command or a topology action fulfills an objective), hint system, scenario editor/admin panel.
+- **Not started**: Phase 4 (DVWA sandbox, blue-team scoring, CTF flags), Phase 5 (leaderboard, achievements, CI/CD).
 
 ### Known gap
 
