@@ -8,13 +8,17 @@ datasource db {
 }
 
 model User {
-  id           String     @id @default(auto()) @map("_id") @db.ObjectId
-  email        String     @unique
-  username     String     @unique
-  passwordHash String
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  progress     Progress[]
+  id                  String               @id @default(auto()) @map("_id") @db.ObjectId
+  email               String               @unique
+  username            String               @unique
+  passwordHash        String
+  role                String               @default("user")
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  progress            Progress[]
+  conversationMembers ConversationMember[]
+  messages            Message[]
+  roomMembers         RoomMember[]
 }
 
 model Scenario {
@@ -26,6 +30,7 @@ model Scenario {
   data        Json
   createdAt   DateTime   @default(now())
   progress    Progress[]
+  rooms       Room[]
 }
 
 model Progress {
@@ -41,4 +46,67 @@ model Progress {
   scenario      Scenario  @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
 
   @@unique([userId, scenarioId])
+}
+
+// type: "world" | "direct" | "group". Exactly one "world" row exists,
+// created lazily by the chat service on first use.
+model Conversation {
+  id        String               @id @default(auto()) @map("_id") @db.ObjectId
+  type      String
+  name      String?
+  createdBy String?              @db.ObjectId
+  createdAt DateTime             @default(now())
+  members   ConversationMember[]
+  messages  Message[]
+}
+
+// status: "member" | "invited". A direct conversation's two participants
+// are always "member"; group invitees start "invited" until they accept.
+model ConversationMember {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId String       @db.ObjectId
+  userId         String       @db.ObjectId
+  status         String       @default("member")
+  joinedAt       DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId String       @db.ObjectId
+  senderId       String       @db.ObjectId
+  body           String
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
+}
+
+// Co-op multiplayer session for a scenario. status: "open" | "completed".
+// claims maps objectiveId -> userId (who's working on it); completedObjectives
+// maps objectiveId -> true once that member checks it off.
+model Room {
+  id                  String       @id @default(auto()) @map("_id") @db.ObjectId
+  code                String       @unique
+  scenarioId          String       @db.ObjectId
+  hostId              String       @db.ObjectId
+  status              String       @default("open")
+  claims              Json         @default("{}")
+  completedObjectives Json         @default("{}")
+  createdAt           DateTime     @default(now())
+  scenario            Scenario     @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+  members             RoomMember[]
+}
+
+model RoomMember {
+  id       String   @id @default(auto()) @map("_id") @db.ObjectId
+  roomId   String   @db.ObjectId
+  userId   String   @db.ObjectId
+  joinedAt DateTime @default(now())
+  room     Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
 }

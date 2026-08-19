@@ -10,7 +10,7 @@ export async function authRoutes(app: FastifyInstance) {
     }
     try {
       const user = await registerUser(parsed.data);
-      const token = app.jwt.sign({ sub: user.id, email: user.email, username: user.username });
+      const token = app.jwt.sign({ sub: user.id, email: user.email, username: user.username, role: user.role });
       return reply.status(201).send({ user, token });
     } catch (err) {
       if (err instanceof AuthError) return reply.status(409).send({ error: err.message });
@@ -26,7 +26,7 @@ export async function authRoutes(app: FastifyInstance) {
     }
     try {
       const user = await verifyUser(parsed.data);
-      const token = app.jwt.sign({ sub: user.id, email: user.email, username: user.username });
+      const token = app.jwt.sign({ sub: user.id, email: user.email, username: user.username, role: user.role });
       return reply.send({ user, token });
     } catch (err) {
       if (err instanceof AuthError) return reply.status(401).send({ error: err.message });

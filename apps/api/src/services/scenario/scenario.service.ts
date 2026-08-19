@@ -93,21 +93,43 @@ export async function submitFlag(
   return { correct: true, alreadyCaptured: false, pointsAwarded: flagConfig.points };
 }
 
-export async function getLeaderboard(limit = 20) {
-  const results = await prisma.progress.groupBy({
-    by: ["userId"],
-    _sum: { score: true },
-  });
+async function rankedTotals(): Promise<{ userId: string; totalScore: number }[]> {
+  const results = await prisma.progress.groupBy({ by: ["userId"], _sum: { score: true } });
+  return results
+    .map((r) => ({ userId: r.userId, totalScore: r._sum.score ?? 0 }))
+    .filter((r) => r.totalScore > 0)
+    .sort((a, b) => b.totalScore - a.totalScore);
+}
 
+export async function getLeaderboard(limit = 20) {
+  const totals = await rankedTotals();
   const users = await prisma.user.findMany({
-    where: { id: { in: results.map((r) => r.userId) } },
+    where: { id: { in: totals.map((r) => r.userId) } },
     select: { id: true, username: true },
   });
   const usernameById = new Map(users.map((u) => [u.id, u.username]));
 
-  return results
-    .map((r) => ({ username: usernameById.get(r.userId) ?? "unknown", totalScore: r._sum.score ?? 0 }))
-    .filter((r) => r.totalScore > 0)
-    .sort((a, b) => b.totalScore - a.totalScore)
-    .slice(0, limit);
+  return totals.slice(0, limit).map((r) => ({ username: usernameById.get(r.userId) ?? "unknown", totalScore: r.totalScore }));
+}
+
+export interface ProfileStats {
+  totalScore: number;
+  scenariosCompleted: number;
+  scenariosInProgress: number;
+  flagsCaptured: number;
+  rank: number | null;
+}
+
+export async function getProfileStats(userId: string): Promise<ProfileStats> {
+  const progress = await prisma.progress.findMany({ where: { userId } });
+  const totalScore = progress.reduce((sum, p) => sum + p.score, 0);
+  const scenariosCompleted = progress.filter((p) => p.status === "completed").length;
+  const scenariosInProgress = progress.filter((p) => p.status === "in_progress").length;
+  const flagsCaptured = progress.filter((p) => p.flagCaptured).length;
+
+  const totals = await rankedTotals();
+  const rankIndex = totals.findIndex((r) => r.userId === userId);
+  const rank = rankIndex === -1 ? null : rankIndex + 1;
+
+  return { totalScore, scenariosCompleted, scenariosInProgress, flagsCaptured, rank };
 }

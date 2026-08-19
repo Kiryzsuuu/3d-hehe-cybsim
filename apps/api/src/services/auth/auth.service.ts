@@ -1,5 +1,5 @@
 import bcrypt from "bcrypt";
-import type { RegisterInput, LoginInput, AuthUser } from "@cybersim/types";
+import type { RegisterInput, LoginInput, AuthUser, UserRole } from "@cybersim/types";
 import { prisma } from "../../db/client.js";
 
 const SALT_ROUNDS = 12;
@@ -16,7 +16,7 @@ export async function registerUser(input: RegisterInput): Promise<AuthUser> {
   const user = await prisma.user.create({
     data: { email: input.email, username: input.username, passwordHash },
   });
-  return { id: user.id, email: user.email, username: user.username };
+  return { id: user.id, email: user.email, username: user.username, role: user.role as UserRole };
 }
 
 export async function verifyUser(input: LoginInput): Promise<AuthUser> {
@@ -26,5 +26,5 @@ export async function verifyUser(input: LoginInput): Promise<AuthUser> {
   const valid = await bcrypt.compare(input.password, user.passwordHash);
   if (!valid) throw new AuthError("Invalid credentials");
 
-  return { id: user.id, email: user.email, username: user.username };
+  return { id: user.id, email: user.email, username: user.username, role: user.role as UserRole };
 }

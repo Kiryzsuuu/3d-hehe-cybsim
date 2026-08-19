@@ -7,8 +7,12 @@ import { clearSession, useRequireAuth } from "@/hooks/useAuth";
 const NAV_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/dashboard/scenarios", label: "Skenario" },
+  { href: "/dashboard/rooms", label: "Room" },
   { href: "/dashboard/network", label: "Network Topology" },
+  { href: "/dashboard/chat", label: "Chat" },
   { href: "/leaderboard", label: "Leaderboard" },
+  { href: "/dashboard/profile", label: "Profil" },
+  { href: "/tutorial", label: "Tutorial" },
 ];
 
 export default function AppHeader() {
@@ -21,11 +25,13 @@ export default function AppHeader() {
     router.push("/login");
   };
 
+  const links = user?.role === "admin" ? [...NAV_LINKS, { href: "/dashboard/admin", label: "Admin" }] : NAV_LINKS;
+
   return (
     <header className="mb-6 flex flex-wrap items-center justify-between gap-3 border-b border-gray-800 pb-4">
       <nav className="flex flex-wrap gap-1">
-        {NAV_LINKS.map((link) => {
-          const active = pathname === link.href;
+        {links.map((link) => {
+          const active = link.href === "/dashboard" ? pathname === "/dashboard" : pathname?.startsWith(link.href);
           return (
             <Link
               key={link.href}
@@ -40,7 +46,12 @@ export default function AppHeader() {
         })}
       </nav>
       <div className="flex items-center gap-3 text-sm text-gray-400">
-        {user && <span>{user.username}</span>}
+        {user && (
+          <span>
+            {user.username}
+            {user.role === "admin" && <span className="ml-1 text-xs text-yellow-400">(admin)</span>}
+          </span>
+        )}
         <button onClick={onLogout} className="rounded-md border border-gray-700 px-3 py-1.5 hover:border-red-800 hover:text-red-400">
           Logout
         </button>

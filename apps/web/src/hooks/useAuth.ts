@@ -7,6 +7,7 @@ export interface StoredUser {
   id: string;
   email: string;
   username: string;
+  role: "user" | "admin";
 }
 
 function readStoredUser(): StoredUser | null {
@@ -54,4 +55,24 @@ export function useRequireAuth() {
   }, [router]);
 
   return { ready, user };
+}
+
+// Like useRequireAuth, but also redirects away from /dashboard if the
+// logged-in user isn't an admin. Server routes still enforce this
+// independently (403 via requireAdmin) — this is only for UI convenience.
+export function useRequireAdmin() {
+  const router = useRouter();
+  const { ready, user } = useRequireAuth();
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    if (!ready) return;
+    if (user?.role !== "admin") {
+      router.replace("/dashboard");
+      return;
+    }
+    setChecked(true);
+  }, [ready, user, router]);
+
+  return { ready: checked, user };
 }

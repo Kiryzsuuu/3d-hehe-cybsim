@@ -4,6 +4,7 @@ export interface AuthUser {
   id: string;
   email: string;
   username: string;
+  role: "user" | "admin";
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -167,4 +168,157 @@ export function startDvwa() {
 
 export function stopDvwa() {
   return request<DvwaStatus>("/api/sandbox/dvwa/stop", { method: "POST", headers: authHeader() });
+}
+
+// --- Profile ---
+
+export interface ProfileStats {
+  totalScore: number;
+  scenariosCompleted: number;
+  scenariosInProgress: number;
+  flagsCaptured: number;
+  rank: number | null;
+}
+
+export interface ProfileResponse {
+  user: { id: string; email: string; username: string; role: "user" | "admin"; createdAt: string };
+  stats: ProfileStats;
+  history: ProgressEntry[];
+}
+
+export function getProfile() {
+  return request<ProfileResponse>("/api/profile", { headers: authHeader() });
+}
+
+// --- Admin ---
+
+export interface AdminUserRow {
+  id: string;
+  email: string;
+  username: string;
+  role: "user" | "admin";
+  createdAt: string;
+  totalScore: number;
+  scenariosCompleted: number;
+}
+
+export interface PlatformStats {
+  totalUsers: number;
+  totalScenarios: number;
+  totalCompletions: number;
+  totalMessages: number;
+}
+
+export function getAdminUsers() {
+  return request<{ users: AdminUserRow[] }>("/api/admin/users", { headers: authHeader() });
+}
+
+export function getAdminStats() {
+  return request<{ stats: PlatformStats }>("/api/admin/stats", { headers: authHeader() });
+}
+
+export function setUserRole(userId: string, role: "user" | "admin") {
+  return request<{ user: { id: string; username: string; role: string } }>(`/api/admin/users/${userId}/role`, {
+    method: "POST",
+    headers: authHeader(),
+    body: JSON.stringify({ role }),
+  });
+}
+
+// --- Chat ---
+
+export interface ConversationSummary {
+  id: string;
+  type: "world" | "direct" | "group";
+  name: string | null;
+  lastMessage: { body: string; senderUsername: string; createdAt: string } | null;
+}
+
+export interface ChatMessage {
+  id: string;
+  body: string;
+  senderUsername: string;
+  createdAt: string;
+}
+
+export interface PendingInvite {
+  conversationId: string;
+  groupName: string;
+}
+
+export function listConversations() {
+  return request<{ conversations: ConversationSummary[] }>("/api/chat/conversations", { headers: authHeader() });
+}
+
+export function getMessages(conversationId: string) {
+  return request<{ messages: ChatMessage[] }>(`/api/chat/conversations/${conversationId}/messages`, {
+    headers: authHeader(),
+  });
+}
+
+export function startDirectConversation(username: string) {
+  return request<{ conversationId: string }>("/api/chat/conversations/direct", {
+    method: "POST",
+    headers: authHeader(),
+    body: JSON.stringify({ username }),
+  });
+}
+
+export function createGroup(name: string) {
+  return request<{ conversationId: string }>("/api/chat/conversations/group", {
+    method: "POST",
+    headers: authHeader(),
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function inviteToGroup(conversationId: string, username: string) {
+  return request<{ invited: boolean }>(`/api/chat/conversations/${conversationId}/invite`, {
+    method: "POST",
+    headers: authHeader(),
+    body: JSON.stringify({ username }),
+  });
+}
+
+export function listInvites() {
+  return request<{ invites: PendingInvite[] }>("/api/chat/invites", { headers: authHeader() });
+}
+
+export function acceptInvite(conversationId: string) {
+  return request<{ accepted: boolean }>(`/api/chat/invites/${conversationId}/accept`, {
+    method: "POST",
+    headers: authHeader(),
+  });
+}
+
+export function getWorldConversationId() {
+  return request<{ worldId: string }>("/api/chat/world-id");
+}
+
+// --- Rooms (multiplayer co-op) ---
+
+export interface RoomState {
+  code: string;
+  status: "open" | "completed";
+  hostId: string;
+  scenario: { slug: string; title: string; objectives: ScenarioObjective[] };
+  claims: Record<string, string>;
+  completedObjectives: Record<string, boolean>;
+  members: { userId: string; username: string }[];
+}
+
+export function createRoom(scenarioSlug: string) {
+  return request<{ code: string }>("/api/rooms", {
+    method: "POST",
+    headers: authHeader(),
+    body: JSON.stringify({ scenarioSlug }),
+  });
+}
+
+export function joinRoom(code: string) {
+  return request<{ joined: boolean }>(`/api/rooms/${code}/join`, { method: "POST", headers: authHeader() });
+}
+
+export function getRoomState(code: string) {
+  return request<{ state: RoomState }>(`/api/rooms/${code}`, { headers: authHeader() });
 }

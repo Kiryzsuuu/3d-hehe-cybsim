@@ -32,6 +32,7 @@ export default function DashboardPage() {
   const { ready, user } = useRequireAuth();
   const [progress, setProgress] = useState<ProgressEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showTutorialBanner, setShowTutorialBanner] = useState(false);
 
   useEffect(() => {
     if (!ready) return;
@@ -39,13 +40,46 @@ export default function DashboardPage() {
       .then((res) => setProgress(res.progress))
       .catch(() => setProgress([]))
       .finally(() => setLoading(false));
+
+    if (!localStorage.getItem("cybersim_tutorial_seen")) {
+      setShowTutorialBanner(true);
+    }
   }, [ready]);
+
+  const dismissTutorialBanner = () => {
+    localStorage.setItem("cybersim_tutorial_seen", "1");
+    setShowTutorialBanner(false);
+  };
 
   if (!ready) return null;
 
   return (
     <main className="min-h-screen px-4 py-8 md:px-8">
       <AppHeader />
+
+      {showTutorialBanner && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent bg-cyan-950/20 p-4">
+          <p className="text-sm text-gray-200">
+            Baru pertama kali main? Cek Tutorial untuk panduan singkat semua fitur.
+          </p>
+          <div className="flex gap-2">
+            <Link
+              href="/tutorial"
+              onClick={dismissTutorialBanner}
+              className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-black"
+            >
+              Lihat Tutorial
+            </Link>
+            <button
+              onClick={dismissTutorialBanner}
+              className="rounded-md border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:text-gray-100"
+            >
+              Nanti saja
+            </button>
+          </div>
+        </div>
+      )}
+
       <h1 className="mb-6 text-2xl font-semibold">
         Selamat datang, <span className="text-accent">{user?.username}</span>
       </h1>
