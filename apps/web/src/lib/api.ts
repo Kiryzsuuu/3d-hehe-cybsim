@@ -133,3 +133,21 @@ export interface LeaderboardEntry {
 export function getLeaderboard() {
   return request<{ leaderboard: LeaderboardEntry[] }>("/api/leaderboard");
 }
+
+export interface SandboxStatus {
+  running: boolean;
+  containerId: string | null;
+  name: string;
+}
+
+export function getSandboxStatus() {
+  return request<SandboxStatus>("/api/sandbox", { headers: authHeader() });
+}
+
+export function startSandbox() {
+  return request<SandboxStatus>("/api/sandbox/start", { method: "POST", headers: authHeader() });
+}
+
+export function stopSandbox() {
+  return request<SandboxStatus>("/api/sandbox/stop", { method: "POST", headers: authHeader() });
+}

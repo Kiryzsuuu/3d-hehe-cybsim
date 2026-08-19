@@ -11,6 +11,11 @@ const TerminalPanel = dynamic(() => import("@/components/terminal/Terminal"), {
   loading: () => <div className="h-96 w-full rounded-lg border border-gray-800 bg-black" />,
 });
 
+const SandboxPanel = dynamic(() => import("@/components/sandbox/SandboxPanel"), {
+  ssr: false,
+  loading: () => <div className="h-32 w-full rounded-lg border border-gray-800" />,
+});
+
 const STATUS_LABEL: Record<string, string> = {
   in_progress: "Sedang berjalan",
   completed: "Selesai",
@@ -80,6 +85,9 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
+
+          <h2 className="mb-2 mt-6 text-sm uppercase tracking-wide text-gray-500">Sandbox</h2>
+          <SandboxPanel />
         </section>
       </div>
     </main>
