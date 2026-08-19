@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String     @id @default(uuid())
+  email        String     @unique
+  username     String     @unique
+  passwordHash String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  progress     Progress[]
+}
+
+model Scenario {
+  id          String     @id @default(uuid())
+  slug        String     @unique
+  title       String
+  level       String
+  description String
+  data        Json
+  createdAt   DateTime   @default(now())
+  progress    Progress[]
+}
+
+model Progress {
+  id           String    @id @default(uuid())
+  userId       String
+  scenarioId   String
+  status       String    @default("in_progress")
+  score        Int       @default(0)
+  completedAt  DateTime?
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  scenario     Scenario  @relation(fields: [scenarioId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, scenarioId])
+}

@@ -1,0 +1,13 @@
+{
+  "name": "cyber-simulator",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --parallel --filter ./apps/* dev",
+    "build": "pnpm --filter ./apps/* build",
+    "lint": "pnpm --filter ./apps/* lint"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

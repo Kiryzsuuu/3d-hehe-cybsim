@@ -1,0 +1,11 @@
+id: intro-ping
+title: "Pengenalan Terminal: Ping"
+level: beginner
+description: >
+  Gunakan perintah `ping` untuk memeriksa konektivitas ke server target.
+objectives:
+  - id: obj-1
+    description: "Jalankan `ping 10.0.0.5`"
+    points: 10
+hints:
+  - "Ketik `help` untuk melihat daftar perintah yang tersedia."

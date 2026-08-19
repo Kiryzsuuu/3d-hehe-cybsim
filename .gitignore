@@ -1,0 +1,16 @@
+node_modules/
+.pnpm-store/
+dist/
+build/
+.next/
+.env
+.env.local
+*.log
+.DS_Store
+Thumbs.db
+coverage/
+.turbo/
+apps/api/prisma/dev.db
+__pycache__/
+*.pyc
+.venv/
