@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { login } from "@/lib/api";
+import { storeSession } from "@/hooks/useAuth";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -16,8 +17,8 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      const { token } = await login(email, password);
-      localStorage.setItem("cybersim_token", token);
+      const { token, user } = await login(email, password);
+      storeSession(token, user);
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");

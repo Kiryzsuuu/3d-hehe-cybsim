@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { listProgress, type ProgressEntry } from "@/lib/api";
+import { useRequireAuth } from "@/hooks/useAuth";
+import AppHeader from "@/components/layout/AppHeader";
 
 // xterm pulls in a non-trivial bundle — lazy-load and skip SSR since it touches window/DOM.
 const TerminalPanel = dynamic(() => import("@/components/terminal/Terminal"), {
@@ -27,41 +29,26 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export default function DashboardPage() {
+  const { ready, user } = useRequireAuth();
   const [progress, setProgress] = useState<ProgressEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!ready) return;
     listProgress()
       .then((res) => setProgress(res.progress))
       .catch(() => setProgress([]))
       .finally(() => setLoading(false));
-  }, []);
+  }, [ready]);
+
+  if (!ready) return null;
 
   return (
     <main className="min-h-screen px-4 py-8 md:px-8">
-      <div className="mb-6 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <div className="flex gap-2">
-          <Link
-            href="/dashboard/scenarios"
-            className="rounded-md border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:border-accent hover:text-accent"
-          >
-            Skenario →
-          </Link>
-          <Link
-            href="/dashboard/network"
-            className="rounded-md border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:border-accent hover:text-accent"
-          >
-            Network Topology →
-          </Link>
-          <Link
-            href="/leaderboard"
-            className="rounded-md border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:border-accent hover:text-accent"
-          >
-            Leaderboard →
-          </Link>
-        </div>
-      </div>
+      <AppHeader />
+      <h1 className="mb-6 text-2xl font-semibold">
+        Selamat datang, <span className="text-accent">{user?.username}</span>
+      </h1>
       <div className="grid gap-6 lg:grid-cols-2">
         <section>
           <h2 className="mb-2 text-sm uppercase tracking-wide text-gray-500">Terminal</h2>

@@ -26,9 +26,11 @@ export async function scenarioRoutes(app: FastifyInstance) {
     const scenario = await getScenarioBySlug(slug);
     if (!scenario) return reply.status(404).send({ error: "Scenario not found" });
 
-    // Never leak the flag hash to the client, even for CTF scenarios.
-    const { flag: _flag, ...safeData } = (scenario.data as Record<string, unknown>) ?? {};
-    return reply.send({ scenario: { ...scenario, data: safeData } });
+    // Never leak the flag hash to the client, even for CTF scenarios. Only
+    // tell the UI whether a flag exists at all, so it knows to show the
+    // submit box without being able to brute-force the hash offline.
+    const { flag, ...safeData } = (scenario.data as Record<string, unknown>) ?? {};
+    return reply.send({ scenario: { ...scenario, data: { ...safeData, hasFlag: !!flag } } });
   });
 
   app.get("/api/progress", { onRequest: [app.authenticate] }, async (req, reply) => {

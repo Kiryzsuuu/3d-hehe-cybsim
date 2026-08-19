@@ -71,7 +71,7 @@ export interface ScenarioObjective {
 }
 
 export interface ScenarioDetail extends ScenarioSummary {
-  data: { objectives: ScenarioObjective[]; hints: string[] };
+  data: { objectives: ScenarioObjective[]; hints: string[]; hasFlag: boolean };
 }
 
 export interface ProgressEntry {

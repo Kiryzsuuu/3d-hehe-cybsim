@@ -4,21 +4,26 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { getScenario, startScenario, completeScenario, submitFlag, type ScenarioDetail } from "@/lib/api";
+import { useRequireAuth } from "@/hooks/useAuth";
+import AppHeader from "@/components/layout/AppHeader";
 
 export default function ScenarioDetailPage() {
   const params = useParams<{ slug: string }>();
   const router = useRouter();
+  const { ready } = useRequireAuth();
   const [scenario, setScenario] = useState<ScenarioDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [hintsShown, setHintsShown] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [completedJustNow, setCompletedJustNow] = useState(false);
   const [flagInput, setFlagInput] = useState("");
   const [flagStatus, setFlagStatus] = useState<"idle" | "checking" | "correct" | "wrong" | "already">("idle");
   const [flagPoints, setFlagPoints] = useState(0);
 
   useEffect(() => {
+    if (!ready) return;
     getScenario(params.slug)
       .then((res) => setScenario(res.scenario))
       .catch((err) => setError(err instanceof Error ? err.message : "Gagal memuat skenario"))
@@ -26,7 +31,7 @@ export default function ScenarioDetailPage() {
     startScenario(params.slug).catch(() => {
       // best-effort: viewing a scenario shouldn't fail if this call errors
     });
-  }, [params.slug]);
+  }, [ready, params.slug]);
 
   const toggleObjective = (id: string) => setChecked((prev) => ({ ...prev, [id]: !prev[id] }));
 
@@ -58,19 +63,61 @@ export default function ScenarioDetailPage() {
     setSubmitting(true);
     try {
       await completeScenario(scenario.slug, totalScore);
-      router.push("/dashboard");
+      setCompletedJustNow(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal menyelesaikan skenario");
       setSubmitting(false);
     }
   };
 
-  if (loading) return <main className="min-h-screen px-4 py-8 md:px-8 text-sm text-gray-500">Memuat...</main>;
+  if (!ready) return null;
+  if (loading)
+    return (
+      <main className="min-h-screen px-4 py-8 md:px-8">
+        <AppHeader />
+        <p className="text-sm text-gray-500">Memuat...</p>
+      </main>
+    );
   if (error || !scenario)
-    return <main className="min-h-screen px-4 py-8 md:px-8 text-sm text-red-400">{error ?? "Skenario tidak ditemukan"}</main>;
+    return (
+      <main className="min-h-screen px-4 py-8 md:px-8">
+        <AppHeader />
+        <p className="text-sm text-red-400">{error ?? "Skenario tidak ditemukan"}</p>
+      </main>
+    );
+
+  if (completedJustNow) {
+    return (
+      <main className="min-h-screen px-4 py-8 md:px-8">
+        <AppHeader />
+        <div className="mx-auto mt-16 max-w-md rounded-lg border border-green-800 p-8 text-center">
+          <div className="mb-2 text-3xl">✓</div>
+          <h1 className="mb-2 text-xl font-semibold text-green-400">Misi Selesai!</h1>
+          <p className="mb-6 text-sm text-gray-400">
+            {scenario.title} berhasil diselesaikan dengan skor {totalScore} pts.
+          </p>
+          <div className="flex justify-center gap-2">
+            <Link
+              href="/dashboard/scenarios"
+              className="rounded-md border border-gray-700 px-4 py-2 text-sm text-gray-300 hover:border-accent hover:text-accent"
+            >
+              Skenario Lain
+            </Link>
+            <button
+              onClick={() => router.push("/dashboard")}
+              className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-black"
+            >
+              Ke Dashboard
+            </button>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen px-4 py-8 md:px-8">
+      <AppHeader />
       <Link href="/dashboard/scenarios" className="text-sm text-gray-500 hover:text-accent">
         ← Kembali ke daftar skenario
       </Link>
@@ -130,35 +177,37 @@ export default function ScenarioDetailPage() {
             </button>
           )}
 
-          <div className="mt-6 border-t border-gray-800 pt-4">
-            <h2 className="mb-2 text-sm uppercase tracking-wide text-gray-500">Submit Flag (CTF)</h2>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={flagInput}
-                onChange={(e) => {
-                  setFlagInput(e.target.value);
-                  setFlagStatus("idle");
-                }}
-                placeholder="CYBERSIM{...}"
-                className="flex-1 rounded-md border border-gray-700 bg-gray-900 px-2 py-1.5 text-sm text-gray-200"
-              />
-              <button
-                onClick={onSubmitFlag}
-                disabled={!flagInput.trim() || flagStatus === "checking"}
-                className="rounded-md border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:border-accent hover:text-accent disabled:opacity-40"
-              >
-                {flagStatus === "checking" ? "Memeriksa..." : "Submit"}
-              </button>
+          {scenario.data.hasFlag && (
+            <div className="mt-6 border-t border-gray-800 pt-4">
+              <h2 className="mb-2 text-sm uppercase tracking-wide text-gray-500">Submit Flag (CTF)</h2>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={flagInput}
+                  onChange={(e) => {
+                    setFlagInput(e.target.value);
+                    setFlagStatus("idle");
+                  }}
+                  placeholder="CYBERSIM{...}"
+                  className="flex-1 rounded-md border border-gray-700 bg-gray-900 px-2 py-1.5 text-sm text-gray-200"
+                />
+                <button
+                  onClick={onSubmitFlag}
+                  disabled={!flagInput.trim() || flagStatus === "checking"}
+                  className="rounded-md border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:border-accent hover:text-accent disabled:opacity-40"
+                >
+                  {flagStatus === "checking" ? "Memeriksa..." : "Submit"}
+                </button>
+              </div>
+              {flagStatus === "correct" && (
+                <p className="mt-2 text-sm text-green-400">Benar. +{flagPoints} pts ditambahkan ke progress Anda.</p>
+              )}
+              {flagStatus === "already" && (
+                <p className="mt-2 text-sm text-yellow-400">Flag sudah pernah Anda capture sebelumnya.</p>
+              )}
+              {flagStatus === "wrong" && <p className="mt-2 text-sm text-red-400">Flag salah, coba lagi.</p>}
             </div>
-            {flagStatus === "correct" && (
-              <p className="mt-2 text-sm text-green-400">Benar. +{flagPoints} pts ditambahkan ke progress Anda.</p>
-            )}
-            {flagStatus === "already" && (
-              <p className="mt-2 text-sm text-yellow-400">Flag sudah pernah Anda capture sebelumnya.</p>
-            )}
-            {flagStatus === "wrong" && <p className="mt-2 text-sm text-red-400">Flag salah, coba lagi.</p>}
-          </div>
+          )}
         </section>
       </div>
     </main>

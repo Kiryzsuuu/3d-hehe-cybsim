@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { register } from "@/lib/api";
+import { storeSession } from "@/hooks/useAuth";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -17,8 +18,8 @@ export default function RegisterPage() {
     setError(null);
     setLoading(true);
     try {
-      const { token } = await register(email, username, password);
-      localStorage.setItem("cybersim_token", token);
+      const { token, user } = await register(email, username, password);
+      storeSession(token, user);
       router.push("/dashboard");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
