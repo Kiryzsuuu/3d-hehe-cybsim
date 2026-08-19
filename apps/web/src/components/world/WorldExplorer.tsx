@@ -21,6 +21,7 @@ const STATIONS: Station[] = [
   { id: "scenarios", label: "Skenario", icon: "🎯", href: "/dashboard/scenarios", x: 12, z: -4, color: "#22c55e" },
   { id: "rooms", label: "Room Multiplayer", icon: "🧩", href: "/dashboard/rooms", x: 12, z: 8, color: "#a855f7" },
   { id: "network", label: "Network Topology", icon: "🌐", href: "/dashboard/network", x: 0, z: 14, color: "#3b82f6" },
+  { id: "server-room", label: "Ruang Server (FPV)", icon: "🔌", href: "/world/network-room", x: -6, z: 14, color: "#f59e0b" },
   { id: "chat", label: "Chat", icon: "💬", href: "/dashboard/chat", x: -12, z: 8, color: "#f472b6" },
   { id: "leaderboard", label: "Leaderboard", icon: "🏆", href: "/leaderboard", x: -12, z: -4, color: "#eab308" },
   { id: "profile", label: "Profil", icon: "🪪", href: "/dashboard/profile", x: -6, z: -14, color: "#f97316" },
