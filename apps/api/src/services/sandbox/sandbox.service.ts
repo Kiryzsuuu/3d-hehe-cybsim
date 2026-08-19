@@ -1,17 +1,4 @@
-import Docker from "dockerode";
-
-// dockerode's docker-modem dependency reads process.env.DOCKER_HOST itself
-// regardless of constructor options, so the unix:// default in .env.example
-// (meant for Linux/macOS hosts) breaks it on Windows even when we try to
-// override socketPath explicitly. Resolve the real per-platform default
-// ourselves and only defer to DOCKER_HOST when it points somewhere that
-// isn't that Linux/macOS default (e.g. a remote tcp:// daemon).
-const DEFAULT_UNIX_DOCKER_HOST = "unix:///var/run/docker.sock";
-const dockerHost = process.env.DOCKER_HOST;
-const docker =
-  dockerHost && dockerHost !== DEFAULT_UNIX_DOCKER_HOST
-    ? new Docker({ socketPath: dockerHost.replace(/^unix:\/\//, "") })
-    : new Docker({ socketPath: process.platform === "win32" ? "//./pipe/docker_engine" : "/var/run/docker.sock" });
+import { docker, safeContainerId } from "./docker-client.js";
 
 const CPU_LIMIT = Number(process.env.SANDBOX_CPU_LIMIT ?? "0.5");
 const MEMORY_LIMIT = process.env.SANDBOX_MEMORY_LIMIT ?? "256m";
@@ -25,9 +12,7 @@ function parseMemoryLimit(value: string): number {
 }
 
 function sandboxName(userId: string): string {
-  // Docker container names only allow [a-zA-Z0-9_.-]; MongoDB ObjectIds are
-  // already hex, but this keeps the function safe if the id format changes.
-  return `cybersim-sandbox-${userId.replace(/[^a-zA-Z0-9_.-]/g, "")}`;
+  return `cybersim-sandbox-${safeContainerId(userId)}`;
 }
 
 export interface SandboxStatus {

@@ -151,3 +151,20 @@ export function startSandbox() {
 export function stopSandbox() {
   return request<SandboxStatus>("/api/sandbox/stop", { method: "POST", headers: authHeader() });
 }
+
+export interface DvwaStatus {
+  running: boolean;
+  url: string | null;
+}
+
+export function getDvwaStatus() {
+  return request<DvwaStatus>("/api/sandbox/dvwa", { headers: authHeader() });
+}
+
+export function startDvwa() {
+  return request<DvwaStatus>("/api/sandbox/dvwa/start", { method: "POST", headers: authHeader() });
+}
+
+export function stopDvwa() {
+  return request<DvwaStatus>("/api/sandbox/dvwa/stop", { method: "POST", headers: authHeader() });
+}

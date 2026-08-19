@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { JwtPayload } from "@cybersim/types";
 import { createUserSandbox, stopUserSandbox, getUserSandboxStatus } from "../services/sandbox/sandbox.service.js";
+import { startDvwaForUser, stopDvwaForUser, getDvwaStatus } from "../services/sandbox/dvwa.service.js";
 
 export async function sandboxRoutes(app: FastifyInstance) {
   app.get("/api/sandbox", { onRequest: [app.authenticate] }, async (req, reply) => {
@@ -37,6 +38,43 @@ export async function sandboxRoutes(app: FastifyInstance) {
     } catch (err) {
       req.log.error(err);
       return reply.status(502).send({ error: "Failed to stop sandbox" });
+    }
+  });
+
+  app.get("/api/sandbox/dvwa", { onRequest: [app.authenticate] }, async (req, reply) => {
+    const { sub } = req.user as JwtPayload;
+    try {
+      const status = await getDvwaStatus(sub);
+      return reply.send(status);
+    } catch (err) {
+      req.log.error(err);
+      return reply.status(502).send({ error: "Docker unavailable" });
+    }
+  });
+
+  app.post(
+    "/api/sandbox/dvwa/start",
+    { onRequest: [app.authenticate], config: { rateLimit: { max: 5, timeWindow: "1 minute" } } },
+    async (req, reply) => {
+      const { sub } = req.user as JwtPayload;
+      try {
+        const status = await startDvwaForUser(sub);
+        return reply.send(status);
+      } catch (err) {
+        req.log.error(err);
+        return reply.status(502).send({ error: "Failed to start DVWA" });
+      }
+    }
+  );
+
+  app.post("/api/sandbox/dvwa/stop", { onRequest: [app.authenticate] }, async (req, reply) => {
+    const { sub } = req.user as JwtPayload;
+    try {
+      const status = await stopDvwaForUser(sub);
+      return reply.send(status);
+    } catch (err) {
+      req.log.error(err);
+      return reply.status(502).send({ error: "Failed to stop DVWA" });
     }
   });
 }

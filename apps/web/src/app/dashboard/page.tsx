@@ -16,6 +16,11 @@ const SandboxPanel = dynamic(() => import("@/components/sandbox/SandboxPanel"), 
   loading: () => <div className="h-32 w-full rounded-lg border border-gray-800" />,
 });
 
+const DvwaPanel = dynamic(() => import("@/components/sandbox/DvwaPanel"), {
+  ssr: false,
+  loading: () => <div className="h-32 w-full rounded-lg border border-gray-800" />,
+});
+
 const STATUS_LABEL: Record<string, string> = {
   in_progress: "Sedang berjalan",
   completed: "Selesai",
@@ -88,6 +93,9 @@ export default function DashboardPage() {
 
           <h2 className="mb-2 mt-6 text-sm uppercase tracking-wide text-gray-500">Sandbox</h2>
           <SandboxPanel />
+
+          <h2 className="mb-2 mt-6 text-sm uppercase tracking-wide text-gray-500">DVWA Target</h2>
+          <DvwaPanel />
         </section>
       </div>
     </main>
