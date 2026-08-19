@@ -1,4 +1,13 @@
+import { createHash } from "node:crypto";
 import { prisma } from "./client.js";
+
+function sha256Hex(input: string): string {
+  return createHash("sha256").update(input, "utf8").digest("hex");
+}
+
+const CTF_FLAG = "CYBERSIM{w3lc0m3_t0_th3_s1mul4t0r}";
+// Base64 of the flag, shown to the player as an in-scenario hint they have to decode.
+const CTF_FLAG_ENCODED = Buffer.from(CTF_FLAG, "utf8").toString("base64");
 
 const scenarios = [
   {
@@ -35,7 +44,23 @@ const scenarios = [
         { id: "obj-1", description: "Jalankan `whoami`", points: 5 },
         { id: "obj-2", description: "Jalankan `ifconfig`", points: 5 },
       ],
-      hints: ["Semua perintah terminal ada di whitelist — ketik `help` untuk melihat daftarnya."],
+      hints: ["Semua perintah terminal ada di whitelist, ketik `help` untuk melihat daftarnya."],
+    },
+  },
+  {
+    slug: "ctf-decode-flag",
+    title: "CTF: Pesan Terenkode",
+    level: "beginner",
+    description:
+      "Tim intelijen mencegat sebuah pesan base64 dari server target. Dekode pesan itu untuk menemukan flag, lalu submit di bawah.",
+    data: {
+      objectives: [{ id: "obj-1", description: "Temukan dan submit flag yang benar", points: 25 }],
+      hints: [
+        `Pesan terenkode (base64): ${CTF_FLAG_ENCODED}`,
+        "Gunakan tool decode base64 apa pun (mis. `atob()` di browser console, atau situs decoder online).",
+        "Format flag: CYBERSIM{...}",
+      ],
+      flag: { hash: sha256Hex(CTF_FLAG), points: 25 },
     },
   },
 ];

@@ -19,3 +19,8 @@ export const scenarioSchema = z.object({
 });
 export type Scenario = z.infer<typeof scenarioSchema>;
 export type ScenarioObjective = z.infer<typeof scenarioObjectiveSchema>;
+
+export const submitFlagSchema = z.object({
+  flag: z.string().min(1).max(256),
+});
+export type SubmitFlagInput = z.infer<typeof submitFlagSchema>;

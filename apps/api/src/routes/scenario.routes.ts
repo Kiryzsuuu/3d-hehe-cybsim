@@ -1,12 +1,14 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import type { JwtPayload } from "@cybersim/types";
+import { submitFlagSchema, type JwtPayload } from "@cybersim/types";
 import {
   listScenarios,
   getScenarioBySlug,
   listProgressForUser,
   startScenario,
   completeScenario,
+  submitFlag,
+  getLeaderboard,
 } from "../services/scenario/scenario.service.js";
 
 const completeBodySchema = z.object({
@@ -23,7 +25,10 @@ export async function scenarioRoutes(app: FastifyInstance) {
     const { slug } = req.params as { slug: string };
     const scenario = await getScenarioBySlug(slug);
     if (!scenario) return reply.status(404).send({ error: "Scenario not found" });
-    return reply.send({ scenario });
+
+    // Never leak the flag hash to the client, even for CTF scenarios.
+    const { flag: _flag, ...safeData } = (scenario.data as Record<string, unknown>) ?? {};
+    return reply.send({ scenario: { ...scenario, data: safeData } });
   });
 
   app.get("/api/progress", { onRequest: [app.authenticate] }, async (req, reply) => {
@@ -57,5 +62,34 @@ export async function scenarioRoutes(app: FastifyInstance) {
 
     const progress = await completeScenario(sub, scenario.id, parsed.data.score);
     return reply.send({ progress });
+  });
+
+  app.post(
+    "/api/scenarios/:slug/submit-flag",
+    {
+      onRequest: [app.authenticate],
+      // Flags are guessable secrets, cap attempts harder than the global limit.
+      config: { rateLimit: { max: 10, timeWindow: "1 minute" } },
+    },
+    async (req, reply) => {
+      const { slug } = req.params as { slug: string };
+      const { sub } = req.user as JwtPayload;
+
+      const parsed = submitFlagSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: "Invalid input", details: parsed.error.flatten() });
+      }
+
+      const scenario = await getScenarioBySlug(slug);
+      if (!scenario) return reply.status(404).send({ error: "Scenario not found" });
+
+      const result = await submitFlag(sub, scenario.id, scenario.data, parsed.data.flag);
+      return reply.send(result);
+    }
+  );
+
+  app.get("/api/leaderboard", async (_req, reply) => {
+    const leaderboard = await getLeaderboard();
+    return reply.send({ leaderboard });
   });
 }

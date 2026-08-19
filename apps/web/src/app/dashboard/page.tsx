@@ -44,6 +44,12 @@ export default function DashboardPage() {
           >
             Network Topology →
           </Link>
+          <Link
+            href="/leaderboard"
+            className="rounded-md border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:border-accent hover:text-accent"
+          >
+            Leaderboard →
+          </Link>
         </div>
       </div>
       <div className="grid gap-6 lg:grid-cols-2">

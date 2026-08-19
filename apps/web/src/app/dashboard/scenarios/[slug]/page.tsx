@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { getScenario, startScenario, completeScenario, type ScenarioDetail } from "@/lib/api";
+import { getScenario, startScenario, completeScenario, submitFlag, type ScenarioDetail } from "@/lib/api";
 
 export default function ScenarioDetailPage() {
   const params = useParams<{ slug: string }>();
@@ -14,6 +14,9 @@ export default function ScenarioDetailPage() {
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [hintsShown, setHintsShown] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [flagInput, setFlagInput] = useState("");
+  const [flagStatus, setFlagStatus] = useState<"idle" | "checking" | "correct" | "wrong" | "already">("idle");
+  const [flagPoints, setFlagPoints] = useState(0);
 
   useEffect(() => {
     getScenario(params.slug)
@@ -31,6 +34,24 @@ export default function ScenarioDetailPage() {
   const totalScore = scenario
     ? scenario.data.objectives.reduce((sum, o) => (checked[o.id] ? sum + o.points : sum), 0)
     : 0;
+
+  const onSubmitFlag = async () => {
+    if (!scenario || !flagInput.trim()) return;
+    setFlagStatus("checking");
+    try {
+      const result = await submitFlag(scenario.slug, flagInput.trim());
+      if (!result.correct) {
+        setFlagStatus("wrong");
+      } else if (result.alreadyCaptured) {
+        setFlagStatus("already");
+      } else {
+        setFlagStatus("correct");
+        setFlagPoints(result.pointsAwarded);
+      }
+    } catch {
+      setFlagStatus("wrong");
+    }
+  };
 
   const onComplete = async () => {
     if (!scenario) return;
@@ -108,6 +129,36 @@ export default function ScenarioDetailPage() {
               Tampilkan hint berikutnya ({hintsShown}/{scenario.data.hints.length})
             </button>
           )}
+
+          <div className="mt-6 border-t border-gray-800 pt-4">
+            <h2 className="mb-2 text-sm uppercase tracking-wide text-gray-500">Submit Flag (CTF)</h2>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={flagInput}
+                onChange={(e) => {
+                  setFlagInput(e.target.value);
+                  setFlagStatus("idle");
+                }}
+                placeholder="CYBERSIM{...}"
+                className="flex-1 rounded-md border border-gray-700 bg-gray-900 px-2 py-1.5 text-sm text-gray-200"
+              />
+              <button
+                onClick={onSubmitFlag}
+                disabled={!flagInput.trim() || flagStatus === "checking"}
+                className="rounded-md border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:border-accent hover:text-accent disabled:opacity-40"
+              >
+                {flagStatus === "checking" ? "Memeriksa..." : "Submit"}
+              </button>
+            </div>
+            {flagStatus === "correct" && (
+              <p className="mt-2 text-sm text-green-400">Benar. +{flagPoints} pts ditambahkan ke progress Anda.</p>
+            )}
+            {flagStatus === "already" && (
+              <p className="mt-2 text-sm text-yellow-400">Flag sudah pernah Anda capture sebelumnya.</p>
+            )}
+            {flagStatus === "wrong" && <p className="mt-2 text-sm text-red-400">Flag salah, coba lagi.</p>}
+          </div>
         </section>
       </div>
     </main>

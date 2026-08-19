@@ -110,3 +110,26 @@ export function completeScenario(slug: string, score: number) {
     body: JSON.stringify({ score }),
   });
 }
+
+export interface SubmitFlagResult {
+  correct: boolean;
+  alreadyCaptured: boolean;
+  pointsAwarded: number;
+}
+
+export function submitFlag(slug: string, flag: string) {
+  return request<SubmitFlagResult>(`/api/scenarios/${slug}/submit-flag`, {
+    method: "POST",
+    headers: authHeader(),
+    body: JSON.stringify({ flag }),
+  });
+}
+
+export interface LeaderboardEntry {
+  username: string;
+  totalScore: number;
+}
+
+export function getLeaderboard() {
+  return request<{ leaderboard: LeaderboardEntry[] }>("/api/leaderboard");
+}

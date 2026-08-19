@@ -1,4 +1,19 @@
+import { createHash, timingSafeEqual } from "node:crypto";
 import { prisma } from "../../db/client.js";
+
+interface ScenarioFlagData {
+  flag?: { hash: string; points: number };
+}
+
+function sha256Hex(input: string): string {
+  return createHash("sha256").update(input, "utf8").digest("hex");
+}
+
+function hashesMatch(a: string, b: string): boolean {
+  const bufA = Buffer.from(a, "hex");
+  const bufB = Buffer.from(b, "hex");
+  return bufA.length === bufB.length && timingSafeEqual(bufA, bufB);
+}
 
 export async function listScenarios() {
   return prisma.scenario.findMany({
@@ -33,4 +48,66 @@ export async function completeScenario(userId: string, scenarioId: string, score
     update: { status: "completed", score, completedAt: new Date() },
     create: { userId, scenarioId, status: "completed", score, completedAt: new Date() },
   });
+}
+
+export interface SubmitFlagResult {
+  correct: boolean;
+  alreadyCaptured: boolean;
+  pointsAwarded: number;
+}
+
+export async function submitFlag(
+  userId: string,
+  scenarioId: string,
+  scenarioData: unknown,
+  submittedFlag: string
+): Promise<SubmitFlagResult> {
+  const flagConfig = (scenarioData as ScenarioFlagData)?.flag;
+  if (!flagConfig) {
+    return { correct: false, alreadyCaptured: false, pointsAwarded: 0 };
+  }
+
+  const submittedHash = sha256Hex(submittedFlag.trim());
+  const correct = hashesMatch(submittedHash, flagConfig.hash);
+  if (!correct) {
+    return { correct: false, alreadyCaptured: false, pointsAwarded: 0 };
+  }
+
+  const existing = await prisma.progress.findUnique({ where: { userId_scenarioId: { userId, scenarioId } } });
+  if (existing?.flagCaptured) {
+    return { correct: true, alreadyCaptured: true, pointsAwarded: 0 };
+  }
+
+  await prisma.progress.upsert({
+    where: { userId_scenarioId: { userId, scenarioId } },
+    update: { flagCaptured: true, score: (existing?.score ?? 0) + flagConfig.points },
+    create: {
+      userId,
+      scenarioId,
+      status: "in_progress",
+      score: flagConfig.points,
+      flagCaptured: true,
+    },
+  });
+
+  return { correct: true, alreadyCaptured: false, pointsAwarded: flagConfig.points };
+}
+
+export async function getLeaderboard(limit = 20) {
+  const results = await prisma.progress.groupBy({
+    by: ["userId"],
+    _sum: { score: true },
+  });
+
+  const users = await prisma.user.findMany({
+    where: { id: { in: results.map((r) => r.userId) } },
+    select: { id: true, username: true },
+  });
+  const usernameById = new Map(users.map((u) => [u.id, u.username]));
+
+  return results
+    .map((r) => ({ username: usernameById.get(r.userId) ?? "unknown", totalScore: r._sum.score ?? 0 }))
+    .filter((r) => r.totalScore > 0)
+    .sort((a, b) => b.totalScore - a.totalScore)
+    .slice(0, limit);
 }
