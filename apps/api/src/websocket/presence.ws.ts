@@ -6,6 +6,7 @@ interface PlayerState {
   userId: string;
   username: string;
   color: string;
+  room: string;
   x: number;
   z: number;
   socket: any;
@@ -13,18 +14,23 @@ interface PlayerState {
 
 interface PresenceEvent {
   type: "snapshot";
+  room: string;
   players: { userId: string; username: string; color: string; x: number; z: number }[];
 }
 
-// Single shared room ("world"). Position updates overwrite state and trigger
-// a broadcast of everyone's latest position to everyone still connected.
-// In-memory, single-server-instance only (same tradeoff as chat.ws.ts).
+const DEFAULT_ROOM = "world";
+
+// Players are scoped to a "room" string (the /world hub, or one of the FPV
+// room slugs) so avatars only appear to other players physically in the same
+// space. In-memory, single-server-instance only (same tradeoff as chat.ws.ts).
 const players = new Map<string, PlayerState>();
 
-function broadcastSnapshot() {
+function broadcastSnapshot(room: string) {
+  const inRoom = Array.from(players.values()).filter((p) => p.room === room);
   const snapshot: PresenceEvent = {
     type: "snapshot",
-    players: Array.from(players.values()).map((p) => ({
+    room,
+    players: inRoom.map((p) => ({
       userId: p.userId,
       username: p.username,
       color: p.color,
@@ -33,12 +39,13 @@ function broadcastSnapshot() {
     })),
   };
   const payload = JSON.stringify(snapshot);
-  for (const p of players.values()) p.socket.send(payload);
+  for (const p of inRoom) p.socket.send(payload);
 }
 
 export async function presenceWebSocket(app: FastifyInstance) {
   app.get("/ws/world-presence", { websocket: true }, (socket, req) => {
     const token = (req.query as { token?: string })?.token;
+    const initialRoom = (req.query as { room?: string })?.room || DEFAULT_ROOM;
     let payload: JwtPayload;
     try {
       if (!token) throw new Error("missing token");
@@ -57,15 +64,24 @@ export async function presenceWebSocket(app: FastifyInstance) {
           userId,
           username: payload.username,
           color: user?.avatarColor ?? "#22d3ee",
+          room: initialRoom,
           x: 0,
           z: 0,
           socket,
         });
-        broadcastSnapshot();
+        broadcastSnapshot(initialRoom);
       })
       .catch(() => {
-        players.set(userId, { userId, username: payload.username, color: "#22d3ee", x: 0, z: 0, socket });
-        broadcastSnapshot();
+        players.set(userId, {
+          userId,
+          username: payload.username,
+          color: "#22d3ee",
+          room: initialRoom,
+          x: 0,
+          z: 0,
+          socket,
+        });
+        broadcastSnapshot(initialRoom);
       });
 
     socket.on("message", (raw: Buffer) => {
@@ -75,18 +91,27 @@ export async function presenceWebSocket(app: FastifyInstance) {
       } catch {
         return;
       }
-      const { x, z } = (message as { x?: number; z?: number }) ?? {};
-      if (typeof x !== "number" || typeof z !== "number") return;
+      const { x, z, room } = (message as { x?: number; z?: number; room?: string }) ?? {};
       const player = players.get(userId);
       if (!player) return;
-      player.x = Math.max(-20, Math.min(20, x));
-      player.z = Math.max(-20, Math.min(20, z));
-      broadcastSnapshot();
+
+      const prevRoom = player.room;
+      if (typeof room === "string" && room !== prevRoom) {
+        player.room = room;
+      }
+      if (typeof x === "number" && typeof z === "number") {
+        player.x = Math.max(-20, Math.min(20, x));
+        player.z = Math.max(-20, Math.min(20, z));
+      }
+
+      if (prevRoom !== player.room) broadcastSnapshot(prevRoom);
+      broadcastSnapshot(player.room);
     });
 
     socket.on("close", () => {
+      const player = players.get(userId);
       players.delete(userId);
-      broadcastSnapshot();
+      if (player) broadcastSnapshot(player.room);
     });
   });
 }

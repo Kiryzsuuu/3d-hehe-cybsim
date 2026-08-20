@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
+import { Text } from "@react-three/drei";
 import * as THREE from "three";
+import type { OtherPlayer } from "@/hooks/usePresenceSocket";
 
 const MOVE_SPEED = 6;
 
@@ -156,6 +158,51 @@ export function useFpvInteraction({
   }, [locked, cameraRef, targetsRef, maxDistance, pollMs]);
 
   return { hoveredId };
+}
+
+// Reports this camera's XZ position into the room's presence channel every
+// frame (throttled inside reportPosition itself), so other players in the
+// same FPV room see this player move. Call once inside the Canvas.
+export function FpvPresenceReporter({ reportPosition }: { reportPosition: (x: number, z: number) => void }) {
+  const { camera } = useThree();
+  useFrame(() => {
+    reportPosition(camera.position.x, camera.position.z);
+  });
+  return null;
+}
+
+// Renders other players physically inside this FPV room as capsules with a
+// floating username label, lerped toward their latest reported position
+// since updates only arrive ~every 150ms over the socket.
+function OtherFpvPlayer({ player }: { player: OtherPlayer }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+  useFrame((_, delta) => {
+    if (!meshRef.current) return;
+    meshRef.current.position.x = THREE.MathUtils.lerp(meshRef.current.position.x, player.x, Math.min(1, delta * 8));
+    meshRef.current.position.z = THREE.MathUtils.lerp(meshRef.current.position.z, player.z, Math.min(1, delta * 8));
+  });
+
+  return (
+    <group>
+      <mesh ref={meshRef} position={[player.x, 0.9, player.z]}>
+        <capsuleGeometry args={[0.35, 1, 4, 8]} />
+        <meshStandardMaterial color={player.color} />
+      </mesh>
+      <Text position={[player.x, 1.9, player.z]} fontSize={0.3} color={player.color} anchorX="center">
+        {player.username}
+      </Text>
+    </group>
+  );
+}
+
+export function FpvOtherPlayers({ players }: { players: OtherPlayer[] }) {
+  return (
+    <>
+      {players.map((p) => (
+        <OtherFpvPlayer key={p.userId} player={p} />
+      ))}
+    </>
+  );
 }
 
 export function FpvOverlay({

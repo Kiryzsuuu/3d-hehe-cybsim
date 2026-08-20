@@ -5,9 +5,11 @@ import { Canvas } from "@react-three/fiber";
 import { PointerLockControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 import { getScenario, submitFlag, type ScenarioDetail } from "@/lib/api";
-import { FpvRig, FpvRoom, FpvOverlay, useFpvKeys, useFpvInteraction } from "./fpv";
+import { FpvRig, FpvRoom, FpvOverlay, FpvPresenceReporter, FpvOtherPlayers, useFpvKeys, useFpvInteraction } from "./fpv";
 import { useRequireAuth } from "@/hooks/useAuth";
-import { usePresenceSocket } from "@/hooks/usePresenceSocket";
+import { usePresenceSocket, type OtherPlayer } from "@/hooks/usePresenceSocket";
+
+const ROOM_ID = "ctf-terminal";
 
 const SCENARIO_SLUG = "ctf-decode-flag";
 const TERMINAL_POSITION: [number, number, number] = [0, 0, -8];
@@ -43,9 +45,11 @@ interface SceneProps {
   hacked: boolean;
   hint: string | null;
   terminalRef: React.MutableRefObject<Record<string, THREE.Object3D | null>>;
+  others: OtherPlayer[];
+  reportPosition: (x: number, z: number) => void;
 }
 
-function Scene({ keysRef, hacked, hint, terminalRef }: SceneProps) {
+function Scene({ keysRef, hacked, hint, terminalRef, others, reportPosition }: SceneProps) {
   return (
     <>
       <ambientLight intensity={0.9} />
@@ -69,6 +73,8 @@ function Scene({ keysRef, hacked, hint, terminalRef }: SceneProps) {
         </mesh>
       </group>
       <Terminal hacked={hacked} hint={hint} />
+      <FpvOtherPlayers players={others} />
+      <FpvPresenceReporter reportPosition={reportPosition} />
       <FpvRig keysRef={keysRef} lookAt={[TERMINAL_POSITION[0], 1.1, TERMINAL_POSITION[2]]} />
     </>
   );
@@ -76,7 +82,7 @@ function Scene({ keysRef, hacked, hint, terminalRef }: SceneProps) {
 
 export default function CtfTerminalRoom() {
   const { user } = useRequireAuth();
-  const { others } = usePresenceSocket(user?.id);
+  const { others, reportPosition } = usePresenceSocket(user?.id, ROOM_ID);
   const keysRef = useFpvKeys();
   const terminalRef = useRef<Record<string, THREE.Object3D | null>>({});
   const cameraRef = useRef<THREE.Camera | null>(null);
@@ -124,7 +130,14 @@ export default function CtfTerminalRoom() {
   return (
     <div className="relative h-[36rem] w-full overflow-hidden rounded-lg border border-gray-800 bg-black">
       <Canvas camera={{ position: [0, 1.6, 0], fov: 70 }} onCreated={({ camera }) => (cameraRef.current = camera)}>
-        <Scene keysRef={keysRef} hacked={status === "hacked"} hint={hint} terminalRef={terminalRef} />
+        <Scene
+          keysRef={keysRef}
+          hacked={status === "hacked"}
+          hint={hint}
+          terminalRef={terminalRef}
+          others={others}
+          reportPosition={reportPosition}
+        />
         <PointerLockControls onLock={() => setLocked(true)} onUnlock={() => setLocked(false)} />
       </Canvas>
 

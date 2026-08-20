@@ -12,9 +12,11 @@ import {
   startDvwa,
   stopDvwa,
 } from "@/lib/api";
-import { FpvRig, FpvRoom, FpvOverlay, useFpvKeys, useFpvInteraction } from "./fpv";
+import { FpvRig, FpvRoom, FpvOverlay, FpvPresenceReporter, FpvOtherPlayers, useFpvKeys, useFpvInteraction } from "./fpv";
 import { useRequireAuth } from "@/hooks/useAuth";
-import { usePresenceSocket } from "@/hooks/usePresenceSocket";
+import { usePresenceSocket, type OtherPlayer } from "@/hooks/usePresenceSocket";
+
+const ROOM_ID = "server-console";
 
 type ConsoleState = "off" | "on" | "busy";
 
@@ -69,9 +71,11 @@ interface SceneProps {
   keysRef: React.MutableRefObject<Record<string, boolean>>;
   states: Record<string, ConsoleState>;
   buttonMeshesRef: React.MutableRefObject<Record<string, THREE.Object3D | null>>;
+  others: OtherPlayer[];
+  reportPosition: (x: number, z: number) => void;
 }
 
-function Scene({ keysRef, states, buttonMeshesRef }: SceneProps) {
+function Scene({ keysRef, states, buttonMeshesRef, others, reportPosition }: SceneProps) {
   return (
     <>
       <ambientLight intensity={0.9} />
@@ -85,6 +89,8 @@ function Scene({ keysRef, states, buttonMeshesRef }: SceneProps) {
           buttonRef={(el) => (buttonMeshesRef.current[c.id] = el)}
         />
       ))}
+      <FpvOtherPlayers players={others} />
+      <FpvPresenceReporter reportPosition={reportPosition} />
       <FpvRig keysRef={keysRef} lookAt={[0, 1, -8]} />
     </>
   );
@@ -92,7 +98,7 @@ function Scene({ keysRef, states, buttonMeshesRef }: SceneProps) {
 
 export default function ServerConsoleRoom() {
   const { user } = useRequireAuth();
-  const { others } = usePresenceSocket(user?.id);
+  const { others, reportPosition } = usePresenceSocket(user?.id, ROOM_ID);
   const keysRef = useFpvKeys();
   const buttonMeshesRef = useRef<Record<string, THREE.Object3D | null>>({});
   const cameraRef = useRef<THREE.Camera | null>(null);
@@ -154,7 +160,13 @@ export default function ServerConsoleRoom() {
   return (
     <div className="relative h-[36rem] w-full overflow-hidden rounded-lg border border-gray-800 bg-black">
       <Canvas camera={{ position: [0, 1.6, 0], fov: 70 }} onCreated={({ camera }) => (cameraRef.current = camera)}>
-        <Scene keysRef={keysRef} states={states} buttonMeshesRef={buttonMeshesRef} />
+        <Scene
+          keysRef={keysRef}
+          states={states}
+          buttonMeshesRef={buttonMeshesRef}
+          others={others}
+          reportPosition={reportPosition}
+        />
         <PointerLockControls onLock={() => setLocked(true)} onUnlock={() => setLocked(false)} />
       </Canvas>
 
