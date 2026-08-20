@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
-import type { OtherPlayer } from "@/hooks/usePresenceSocket";
+import { EMOTES, type OtherPlayer, type EmoteState } from "@/hooks/usePresenceSocket";
 
 const MOVE_SPEED = 6;
 
@@ -171,12 +171,34 @@ export function FpvPresenceReporter({ reportPosition }: { reportPosition: (x: nu
   return null;
 }
 
+// Bounces a large emoji above the player for ~1.8s, restarting the bounce
+// whenever `emoteKey` changes (even for a repeated emoji) since it remounts
+// the elapsed-time clock the animation reads from.
+export function EmoteBubble({ x, z, emoji, emoteKey, y = 2.6 }: { x: number; z: number; emoji: string; emoteKey: number; y?: number }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const textRef = useRef<any>(null);
+  const startRef = useRef(0);
+  useEffect(() => {
+    startRef.current = performance.now();
+  }, [emoteKey]);
+  useFrame(() => {
+    if (!textRef.current) return;
+    const t = (performance.now() - startRef.current) / 1000;
+    textRef.current.position.y = y + Math.abs(Math.sin(t * 6)) * 0.25;
+  });
+  return (
+    <Text ref={textRef} position={[x, y, z]} fontSize={0.5} anchorX="center">
+      {emoji}
+    </Text>
+  );
+}
+
 // Renders other players physically inside this FPV room as capsules with a
 // floating username label, lerped toward their latest reported position
 // since updates only arrive ~every 150ms over the socket. When a chat bubble
 // is active for this player it's shown above the username instead of a
 // separate UI panel, like a speech bubble in a physical space.
-function OtherFpvPlayer({ player, bubble }: { player: OtherPlayer; bubble?: string }) {
+function OtherFpvPlayer({ player, bubble, emote }: { player: OtherPlayer; bubble?: string; emote?: EmoteState }) {
   const meshRef = useRef<THREE.Mesh>(null);
   useFrame((_, delta) => {
     if (!meshRef.current) return;
@@ -207,18 +229,41 @@ function OtherFpvPlayer({ player, bubble }: { player: OtherPlayer; bubble?: stri
           {bubble}
         </Text>
       )}
+      {emote && <EmoteBubble x={player.x} z={player.z} emoji={emote.emoji} emoteKey={emote.key} />}
     </group>
   );
 }
 
-export function FpvOtherPlayers({ players, chatBubbles }: { players: OtherPlayer[]; chatBubbles?: Record<string, string> }) {
+export function FpvOtherPlayers({
+  players,
+  chatBubbles,
+  emotes,
+}: {
+  players: OtherPlayer[];
+  chatBubbles?: Record<string, string>;
+  emotes?: Record<string, EmoteState>;
+}) {
   return (
     <>
       {players.map((p) => (
-        <OtherFpvPlayer key={p.userId} player={p} bubble={chatBubbles?.[p.userId]} />
+        <OtherFpvPlayer key={p.userId} player={p} bubble={chatBubbles?.[p.userId]} emote={emotes?.[p.userId]} />
       ))}
     </>
   );
+}
+
+// Number keys 1-4 fire one of the fixed emote emojis while pointer-locked,
+// no menu needed, matching a quick physical gesture rather than typed chat.
+export function useFpvEmoteKeys(locked: boolean, sendEmote: (emoji: string) => void) {
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!locked) return;
+      const index = Number(e.key) - 1;
+      if (index >= 0 && index < EMOTES.length) sendEmote(EMOTES[index]);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [locked, sendEmote]);
 }
 
 // Press T (or click the prompt) to open a one-line chat box, released
@@ -303,6 +348,9 @@ export function FpvOverlay({
               Klik: {hoveredLabel}
             </div>
           )}
+          <div className="pointer-events-none absolute bottom-4 left-1/2 -translate-x-1/2 rounded-md bg-black/60 px-3 py-1.5 text-xs text-gray-400">
+            {EMOTES.map((e, i) => `${i + 1}:${e}`).join("  ")} untuk emote
+          </div>
         </>
       )}
     </>

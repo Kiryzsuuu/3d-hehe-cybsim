@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Grid, Text } from "@react-three/drei";
 import * as THREE from "three";
-import { usePresenceSocket, type OtherPlayer } from "@/hooks/usePresenceSocket";
+import { usePresenceSocket, EMOTES, type OtherPlayer, type EmoteState } from "@/hooks/usePresenceSocket";
+import { EmoteBubble } from "./fpv";
 import { useRequireAuth } from "@/hooks/useAuth";
 import { getProfile } from "@/lib/api";
 
@@ -109,7 +110,7 @@ function Player({
   );
 }
 
-function OtherPlayerAvatar({ player, bubble }: { player: OtherPlayer; bubble?: string }) {
+function OtherPlayerAvatar({ player, bubble, emote }: { player: OtherPlayer; bubble?: string; emote?: EmoteState }) {
   const meshRef = useRef<THREE.Mesh>(null);
 
   // Smoothly lerp toward the latest reported position each frame instead of
@@ -143,6 +144,7 @@ function OtherPlayerAvatar({ player, bubble }: { player: OtherPlayer; bubble?: s
           {bubble}
         </Text>
       )}
+      {emote && <EmoteBubble x={player.x} z={player.z} emoji={emote.emoji} emoteKey={emote.key} y={2.05} />}
     </group>
   );
 }
@@ -154,6 +156,7 @@ function Scene({
   onMove,
   others,
   chatBubbles,
+  emotes,
   myColor,
 }: {
   positionRef: React.MutableRefObject<{ x: number; z: number }>;
@@ -162,6 +165,7 @@ function Scene({
   onMove: (x: number, z: number) => void;
   others: OtherPlayer[];
   chatBubbles: Record<string, string>;
+  emotes: Record<string, EmoteState>;
   myColor: string;
 }) {
   return (
@@ -177,7 +181,7 @@ function Scene({
         <StationMarker key={s.id} station={s} active={nearStation?.id === s.id} />
       ))}
       {others.map((p) => (
-        <OtherPlayerAvatar key={p.userId} player={p} bubble={chatBubbles[p.userId]} />
+        <OtherPlayerAvatar key={p.userId} player={p} bubble={chatBubbles[p.userId]} emote={emotes[p.userId]} />
       ))}
       <Player positionRef={positionRef} keysRef={keysRef} onMove={onMove} color={myColor} />
     </>
@@ -191,7 +195,7 @@ export default function WorldExplorer() {
   const keysRef = useRef<Record<string, boolean>>({});
   const [nearStation, setNearStation] = useState<Station | null>(null);
   const [myColor, setMyColor] = useState("#22d3ee");
-  const { others, reportPosition, chatBubbles, sendChat } = usePresenceSocket(user?.id);
+  const { others, reportPosition, chatBubbles, sendChat, emotes, sendEmote } = usePresenceSocket(user?.id);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatValue, setChatValue] = useState("");
   const chatInputRef = useRef<HTMLInputElement>(null);
@@ -214,6 +218,10 @@ export default function WorldExplorer() {
         e.preventDefault();
         setChatOpen(true);
       }
+      const emoteIndex = Number(key) - 1;
+      if (emoteIndex >= 0 && emoteIndex < EMOTES.length) {
+        sendEmote(EMOTES[emoteIndex]);
+      }
     };
     const onKeyUp = (e: KeyboardEvent) => {
       keysRef.current[e.key.toLowerCase()] = false;
@@ -224,7 +232,7 @@ export default function WorldExplorer() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [nearStation, router, chatOpen]);
+  }, [nearStation, router, chatOpen, sendEmote]);
 
   useEffect(() => {
     if (chatOpen) {
@@ -262,12 +270,13 @@ export default function WorldExplorer() {
           onMove={reportPosition}
           others={others}
           chatBubbles={chatBubbles}
+          emotes={emotes}
           myColor={myColor}
         />
       </Canvas>
 
       <div className="pointer-events-none absolute left-4 top-4 rounded-md bg-black/60 px-3 py-2 text-xs text-gray-300">
-        WASD / panah untuk jalan · T untuk chat
+        WASD / panah untuk jalan · T untuk chat · 1-4 untuk emote
       </div>
 
       {chatOpen && (

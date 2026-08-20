@@ -12,9 +12,19 @@ import {
   startDvwa,
   stopDvwa,
 } from "@/lib/api";
-import { FpvRig, FpvRoom, FpvOverlay, FpvPresenceReporter, FpvOtherPlayers, FpvChatBox, useFpvKeys, useFpvInteraction } from "./fpv";
+import {
+  FpvRig,
+  FpvRoom,
+  FpvOverlay,
+  FpvPresenceReporter,
+  FpvOtherPlayers,
+  FpvChatBox,
+  useFpvKeys,
+  useFpvInteraction,
+  useFpvEmoteKeys,
+} from "./fpv";
 import { useRequireAuth } from "@/hooks/useAuth";
-import { usePresenceSocket, type OtherPlayer } from "@/hooks/usePresenceSocket";
+import { usePresenceSocket, type OtherPlayer, type EmoteState } from "@/hooks/usePresenceSocket";
 
 const ROOM_ID = "server-console";
 
@@ -73,10 +83,11 @@ interface SceneProps {
   buttonMeshesRef: React.MutableRefObject<Record<string, THREE.Object3D | null>>;
   others: OtherPlayer[];
   chatBubbles: Record<string, string>;
+  emotes: Record<string, EmoteState>;
   reportPosition: (x: number, z: number) => void;
 }
 
-function Scene({ keysRef, states, buttonMeshesRef, others, chatBubbles, reportPosition }: SceneProps) {
+function Scene({ keysRef, states, buttonMeshesRef, others, chatBubbles, emotes, reportPosition }: SceneProps) {
   return (
     <>
       <ambientLight intensity={0.9} />
@@ -90,7 +101,7 @@ function Scene({ keysRef, states, buttonMeshesRef, others, chatBubbles, reportPo
           buttonRef={(el) => (buttonMeshesRef.current[c.id] = el)}
         />
       ))}
-      <FpvOtherPlayers players={others} chatBubbles={chatBubbles} />
+      <FpvOtherPlayers players={others} chatBubbles={chatBubbles} emotes={emotes} />
       <FpvPresenceReporter reportPosition={reportPosition} />
       <FpvRig keysRef={keysRef} lookAt={[0, 1, -8]} />
     </>
@@ -99,7 +110,7 @@ function Scene({ keysRef, states, buttonMeshesRef, others, chatBubbles, reportPo
 
 export default function ServerConsoleRoom() {
   const { user } = useRequireAuth();
-  const { others, reportPosition, chatBubbles, sendChat } = usePresenceSocket(user?.id, ROOM_ID);
+  const { others, reportPosition, chatBubbles, sendChat, emotes, sendEmote } = usePresenceSocket(user?.id, ROOM_ID);
   const keysRef = useFpvKeys();
   const buttonMeshesRef = useRef<Record<string, THREE.Object3D | null>>({});
   const cameraRef = useRef<THREE.Camera | null>(null);
@@ -153,6 +164,7 @@ export default function ServerConsoleRoom() {
   );
 
   const { hoveredId } = useFpvInteraction({ locked, cameraRef, targetsRef: buttonMeshesRef, onHit });
+  useFpvEmoteKeys(locked, sendEmote);
 
   const hoveredLabel = hoveredId
     ? `${states[hoveredId] === "on" ? "Matikan" : "Nyalakan"} ${CONSOLES.find((c) => c.id === hoveredId)?.label}`
@@ -167,6 +179,7 @@ export default function ServerConsoleRoom() {
           buttonMeshesRef={buttonMeshesRef}
           others={others}
           chatBubbles={chatBubbles}
+          emotes={emotes}
           reportPosition={reportPosition}
         />
         <PointerLockControls onLock={() => setLocked(true)} onUnlock={() => setLocked(false)} />
@@ -175,7 +188,7 @@ export default function ServerConsoleRoom() {
       <FpvOverlay
         locked={locked}
         entryTitle="Klik untuk masuk mode FPV"
-        entryBody="WASD untuk jalan, mouse untuk lihat sekeliling, klik tombol power di rak untuk menyalakan/mematikan container Docker sungguhan. Tekan T untuk chat."
+        entryBody="WASD untuk jalan, mouse untuk lihat sekeliling, klik tombol power di rak untuk menyalakan/mematikan container Docker sungguhan. Tekan T untuk chat, 1-4 untuk emote."
         hoveredLabel={hoveredLabel}
       />
       <FpvChatBox locked={locked} onSend={sendChat} />

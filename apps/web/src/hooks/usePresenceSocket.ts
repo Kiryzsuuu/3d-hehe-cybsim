@@ -24,6 +24,15 @@ interface ChatEvent {
   text: string;
 }
 
+interface EmoteEvent {
+  type: "emote";
+  room: string;
+  userId: string;
+  emoji: string;
+}
+
+export const EMOTES = ["👋", "😂", "❤️", "😮"];
+
 // Broadcasts this player's position to a named "room" (the /world hub by
 // default, or an FPV room slug) and reflects everyone else's latest position
 // in that same room back. Throttled client-side (not just a nice-to-have:
@@ -34,13 +43,22 @@ const SEND_INTERVAL_MS = 150;
 // How long a chat bubble stays attached to a player before clearing, purely
 // client-side timing since the server never persists chat messages.
 const CHAT_BUBBLE_MS = 5000;
+const EMOTE_MS = 1800;
+
+export interface EmoteState {
+  emoji: string;
+  key: number;
+}
 
 export function usePresenceSocket(myUserId: string | undefined, room: string = "world") {
   const socketRef = useRef<WebSocket | null>(null);
   const [others, setOthers] = useState<OtherPlayer[]>([]);
   const [chatBubbles, setChatBubbles] = useState<Record<string, string>>({});
+  const [emotes, setEmotes] = useState<Record<string, EmoteState>>({});
   const lastSentRef = useRef(0);
   const bubbleTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const emoteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const emoteNonceRef = useRef(0);
 
   useEffect(() => {
     const wsUrl = process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:3001";
@@ -51,7 +69,7 @@ export function usePresenceSocket(myUserId: string | undefined, room: string = "
       `${wsUrl}/ws/world-presence?token=${encodeURIComponent(token)}&room=${encodeURIComponent(room)}`
     );
     socket.onmessage = (msg) => {
-      let event: SnapshotEvent | ChatEvent;
+      let event: SnapshotEvent | ChatEvent | EmoteEvent;
       try {
         event = JSON.parse(msg.data);
       } catch {
@@ -69,6 +87,19 @@ export function usePresenceSocket(myUserId: string | undefined, room: string = "
             return next;
           });
         }, CHAT_BUBBLE_MS);
+      } else if (event.type === "emote" && event.room === room && event.userId !== myUserId) {
+        emoteNonceRef.current += 1;
+        const key = emoteNonceRef.current;
+        setEmotes((prev) => ({ ...prev, [event.userId]: { emoji: event.emoji, key } }));
+        clearTimeout(emoteTimersRef.current[event.userId]);
+        emoteTimersRef.current[event.userId] = setTimeout(() => {
+          setEmotes((prev) => {
+            if (prev[event.userId]?.key !== key) return prev;
+            const next = { ...prev };
+            delete next[event.userId];
+            return next;
+          });
+        }, EMOTE_MS);
       }
     };
     socketRef.current = socket;
@@ -94,5 +125,11 @@ export function usePresenceSocket(myUserId: string | undefined, room: string = "
     }
   }, []);
 
-  return { others, reportPosition, chatBubbles, sendChat };
+  const sendEmote = useCallback((emoji: string) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ type: "emote", emoji }));
+    }
+  }, []);
+
+  return { others, reportPosition, chatBubbles, sendChat, emotes, sendEmote };
 }

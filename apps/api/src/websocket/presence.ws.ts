@@ -26,8 +26,16 @@ interface ChatEvent {
   text: string;
 }
 
+interface EmoteEvent {
+  type: "emote";
+  room: string;
+  userId: string;
+  emoji: string;
+}
+
 const DEFAULT_ROOM = "world";
 const MAX_CHAT_LENGTH = 140;
+const ALLOWED_EMOJIS = new Set(["👋", "😂", "❤️", "😮"]);
 
 // Players are scoped to a "room" string (the /world hub, or one of the FPV
 // room slugs) so avatars only appear to other players physically in the same
@@ -56,6 +64,14 @@ function broadcastSnapshot(room: string) {
 // physical space rather than a logged chat channel.
 function broadcastChat(room: string, from: PlayerState, text: string) {
   const event: ChatEvent = { type: "chat", room, userId: from.userId, username: from.username, text };
+  const payload = JSON.stringify(event);
+  for (const p of players.values()) {
+    if (p.room === room) p.socket.send(payload);
+  }
+}
+
+function broadcastEmote(room: string, from: PlayerState, emoji: string) {
+  const event: EmoteEvent = { type: "emote", room, userId: from.userId, emoji };
   const payload = JSON.stringify(event);
   for (const p of players.values()) {
     if (p.room === room) p.socket.send(payload);
@@ -114,10 +130,15 @@ export async function presenceWebSocket(app: FastifyInstance) {
       const player = players.get(userId);
       if (!player) return;
 
-      const { type, text } = (message as { type?: string; text?: string }) ?? {};
+      const { type, text, emoji } = (message as { type?: string; text?: string; emoji?: string }) ?? {};
       if (type === "chat") {
         if (typeof text !== "string" || !text.trim()) return;
         broadcastChat(player.room, player, text.trim().slice(0, MAX_CHAT_LENGTH));
+        return;
+      }
+      if (type === "emote") {
+        if (typeof emoji !== "string" || !ALLOWED_EMOJIS.has(emoji)) return;
+        broadcastEmote(player.room, player, emoji);
         return;
       }
 

@@ -6,9 +6,19 @@ import { Canvas } from "@react-three/fiber";
 import { Line, PointerLockControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 import { startScenario, completeScenario } from "@/lib/api";
-import { FpvRig, FpvRoom, FpvOverlay, FpvPresenceReporter, FpvOtherPlayers, FpvChatBox, useFpvKeys, useFpvInteraction } from "./fpv";
+import {
+  FpvRig,
+  FpvRoom,
+  FpvOverlay,
+  FpvPresenceReporter,
+  FpvOtherPlayers,
+  FpvChatBox,
+  useFpvKeys,
+  useFpvInteraction,
+  useFpvEmoteKeys,
+} from "./fpv";
 import { useRequireAuth } from "@/hooks/useAuth";
-import { usePresenceSocket, type OtherPlayer } from "@/hooks/usePresenceSocket";
+import { usePresenceSocket, type OtherPlayer, type EmoteState } from "@/hooks/usePresenceSocket";
 
 const ROOM_ID = "network-room";
 
@@ -97,10 +107,11 @@ interface SceneProps {
   portMeshesRef: React.MutableRefObject<Record<string, THREE.Object3D | null>>;
   others: OtherPlayer[];
   chatBubbles: Record<string, string>;
+  emotes: Record<string, EmoteState>;
   reportPosition: (x: number, z: number) => void;
 }
 
-function Scene({ keysRef, selectedId, connectedPair, portMeshesRef, others, chatBubbles, reportPosition }: SceneProps) {
+function Scene({ keysRef, selectedId, connectedPair, portMeshesRef, others, chatBubbles, emotes, reportPosition }: SceneProps) {
   return (
     <>
       <ambientLight intensity={0.9} />
@@ -116,7 +127,7 @@ function Scene({ keysRef, selectedId, connectedPair, portMeshesRef, others, chat
         />
       ))}
       {connectedPair && <Cable from={portWorldPosition(DEVICES[0])} to={portWorldPosition(DEVICES[1])} />}
-      <FpvOtherPlayers players={others} chatBubbles={chatBubbles} />
+      <FpvOtherPlayers players={others} chatBubbles={chatBubbles} emotes={emotes} />
       <FpvPresenceReporter reportPosition={reportPosition} />
       <FpvRig keysRef={keysRef} lookAt={[0, 1, -8]} />
     </>
@@ -126,7 +137,7 @@ function Scene({ keysRef, selectedId, connectedPair, portMeshesRef, others, chat
 export default function NetworkRoom() {
   const router = useRouter();
   const { user } = useRequireAuth();
-  const { others, reportPosition, chatBubbles, sendChat } = usePresenceSocket(user?.id, ROOM_ID);
+  const { others, reportPosition, chatBubbles, sendChat, emotes, sendEmote } = usePresenceSocket(user?.id, ROOM_ID);
   const keysRef = useFpvKeys();
   const portMeshesRef = useRef<Record<string, THREE.Object3D | null>>({});
   const cameraRef = useRef<THREE.Camera | null>(null);
@@ -162,6 +173,7 @@ export default function NetworkRoom() {
   }, []);
 
   const { hoveredId } = useFpvInteraction({ locked, cameraRef, targetsRef: portMeshesRef, onHit });
+  useFpvEmoteKeys(locked, sendEmote);
 
   useEffect(() => {
     if (!connectedPair || bonusAwarded) return;
@@ -183,6 +195,7 @@ export default function NetworkRoom() {
           portMeshesRef={portMeshesRef}
           others={others}
           chatBubbles={chatBubbles}
+          emotes={emotes}
           reportPosition={reportPosition}
         />
         <PointerLockControls onLock={() => setLocked(true)} onUnlock={() => setLocked(false)} />
@@ -191,7 +204,7 @@ export default function NetworkRoom() {
       <FpvOverlay
         locked={locked}
         entryTitle="Klik untuk masuk mode FPV"
-        entryBody="WASD untuk jalan, mouse untuk lihat sekeliling, klik port merah di router lalu klik port di switch untuk menyambungkan kabel. Tekan T untuk chat. ESC untuk keluar mode FPV."
+        entryBody="WASD untuk jalan, mouse untuk lihat sekeliling, klik port merah di router lalu klik port di switch untuk menyambungkan kabel. Tekan T untuk chat, 1-4 untuk emote. ESC untuk keluar mode FPV."
         hoveredLabel={hoveredLabel}
       />
       <FpvChatBox locked={locked} onSend={sendChat} />
