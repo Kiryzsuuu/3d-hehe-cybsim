@@ -180,10 +180,22 @@ export interface ProfileStats {
   rank: number | null;
 }
 
+export interface Achievement {
+  id: string;
+  label: string;
+  description: string;
+  icon: string;
+  target: number;
+  metric: "totalScore" | "scenariosCompleted" | "flagsCaptured" | "rank";
+  unlocked: boolean;
+  progress: number;
+}
+
 export interface ProfileResponse {
   user: { id: string; email: string; username: string; role: "user" | "admin"; avatarColor: string; createdAt: string };
   stats: ProfileStats;
   history: ProgressEntry[];
+  achievements: Achievement[];
 }
 
 export function getProfile() {

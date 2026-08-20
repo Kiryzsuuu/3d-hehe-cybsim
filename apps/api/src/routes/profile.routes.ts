@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { JwtPayload } from "@cybersim/types";
 import { prisma } from "../db/client.js";
 import { getProfileStats, listProgressForUser } from "../services/scenario/scenario.service.js";
+import { evaluateAchievements } from "../services/achievement/achievement.service.js";
 
 const AVATAR_COLORS = [
   "#22d3ee",
@@ -30,8 +31,9 @@ export async function profileRoutes(app: FastifyInstance) {
     if (!user) return reply.status(404).send({ error: "User not found" });
 
     const [stats, history] = await Promise.all([getProfileStats(sub), listProgressForUser(sub)]);
+    const achievements = evaluateAchievements(stats);
 
-    return reply.send({ user, stats, history });
+    return reply.send({ user, stats, history, achievements });
   });
 
   app.get("/api/profile/avatar-colors", async (_req, reply) => {

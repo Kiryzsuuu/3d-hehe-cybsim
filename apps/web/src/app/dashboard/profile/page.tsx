@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getProfile, getAvatarColors, setAvatarColor, type ProfileResponse } from "@/lib/api";
+import { getProfile, getAvatarColors, setAvatarColor, type ProfileResponse, type Achievement } from "@/lib/api";
 import { useRequireAuth } from "@/hooks/useAuth";
 import AppHeader from "@/components/layout/AppHeader";
 
@@ -15,6 +15,27 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
     <div className="rounded-lg border border-gray-800 p-4 text-center">
       <div className="text-2xl font-semibold text-accent">{value}</div>
       <div className="mt-1 text-xs uppercase tracking-wide text-gray-500">{label}</div>
+    </div>
+  );
+}
+
+function AchievementBadge({ achievement }: { achievement: Achievement }) {
+  const pct = Math.min(100, Math.round((achievement.progress / achievement.target) * 100));
+  return (
+    <div
+      className={`rounded-lg border p-3 text-center transition ${
+        achievement.unlocked ? "border-accent bg-accent/5" : "border-gray-800 opacity-60"
+      }`}
+      title={achievement.description}
+    >
+      <div className={`text-3xl ${achievement.unlocked ? "" : "grayscale"}`}>{achievement.icon}</div>
+      <div className="mt-1 text-xs font-medium text-gray-200">{achievement.label}</div>
+      <div className="mt-1 text-[11px] text-gray-500">{achievement.description}</div>
+      {!achievement.unlocked && (
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-gray-800">
+          <div className="h-full bg-accent/60" style={{ width: `${pct}%` }} />
+        </div>
+      )}
     </div>
   );
 }
@@ -108,6 +129,15 @@ export default function ProfilePage() {
             <StatCard label="Sedang Berjalan" value={data.stats.scenariosInProgress} />
             <StatCard label="Flag Ditangkap" value={data.stats.flagsCaptured} />
             <StatCard label="Peringkat" value={data.stats.rank ? `#${data.stats.rank}` : "-"} />
+          </div>
+
+          <h2 className="mb-3 text-sm uppercase tracking-wide text-gray-500">
+            Pencapaian ({data.achievements.filter((a) => a.unlocked).length}/{data.achievements.length})
+          </h2>
+          <div className="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {data.achievements.map((a) => (
+              <AchievementBadge key={a.id} achievement={a} />
+            ))}
           </div>
 
           <h2 className="mb-3 text-sm uppercase tracking-wide text-gray-500">Riwayat / Checkpoint</h2>
