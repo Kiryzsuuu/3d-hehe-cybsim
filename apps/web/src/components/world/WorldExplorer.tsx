@@ -7,6 +7,7 @@ import { Grid, Text } from "@react-three/drei";
 import * as THREE from "three";
 import { usePresenceSocket, EMOTES, type OtherPlayer, type EmoteState } from "@/hooks/usePresenceSocket";
 import { EmoteBubble } from "./fpv";
+import { BlockyAvatar } from "./avatar";
 import { useRequireAuth } from "@/hooks/useAuth";
 import { getProfile } from "@/lib/api";
 
@@ -82,9 +83,10 @@ function Player({
   onMove: (x: number, z: number) => void;
   color: string;
 }) {
-  const meshRef = useRef<THREE.Mesh>(null);
+  const groupRef = useRef<THREE.Group>(null);
   const { camera } = useThree();
   const facing = useRef(0);
+  const movingRef = useRef(false);
 
   useFrame((_, delta) => {
     const keys = keysRef.current;
@@ -95,7 +97,8 @@ function Player({
     if (keys["a"] || keys["arrowleft"]) dx -= 1;
     if (keys["d"] || keys["arrowright"]) dx += 1;
 
-    if (dx !== 0 || dz !== 0) {
+    movingRef.current = dx !== 0 || dz !== 0;
+    if (movingRef.current) {
       const len = Math.hypot(dx, dz);
       dx = (dx / len) * PLAYER_SPEED * delta;
       dz = (dz / len) * PLAYER_SPEED * delta;
@@ -104,9 +107,9 @@ function Player({
       facing.current = Math.atan2(dx, dz);
     }
 
-    if (meshRef.current) {
-      meshRef.current.position.set(positionRef.current.x, 0.6, positionRef.current.z);
-      meshRef.current.rotation.y = facing.current;
+    if (groupRef.current) {
+      groupRef.current.position.set(positionRef.current.x, 0, positionRef.current.z);
+      groupRef.current.rotation.y = facing.current;
     }
 
     const targetCamPos = new THREE.Vector3(positionRef.current.x, 9, positionRef.current.z + 9);
@@ -117,36 +120,47 @@ function Player({
   });
 
   return (
-    <mesh ref={meshRef}>
-      <capsuleGeometry args={[0.4, 0.6, 4, 8]} />
-      <meshStandardMaterial color={color} />
-    </mesh>
+    <group ref={groupRef}>
+      <BlockyAvatar color={color} movingRef={movingRef} />
+    </group>
   );
 }
 
 function OtherPlayerAvatar({ player, bubble, emote }: { player: OtherPlayer; bubble?: string; emote?: EmoteState }) {
-  const meshRef = useRef<THREE.Mesh>(null);
+  const groupRef = useRef<THREE.Group>(null);
+  const movingRef = useRef(false);
+  const facingRef = useRef(0);
 
   // Smoothly lerp toward the latest reported position each frame instead of
-  // snapping, since updates only arrive ~every 150ms over the socket.
+  // snapping, since updates only arrive ~every 150ms over the socket. Whether
+  // it's currently "walking" (for the arm/leg swing) and which way it's
+  // facing are both inferred from that same lerp delta, since the server
+  // only ever tells us the destination, not the gait.
   useFrame((_, delta) => {
-    if (!meshRef.current) return;
-    meshRef.current.position.x = THREE.MathUtils.lerp(meshRef.current.position.x, player.x, Math.min(1, delta * 8));
-    meshRef.current.position.z = THREE.MathUtils.lerp(meshRef.current.position.z, player.z, Math.min(1, delta * 8));
+    if (!groupRef.current) return;
+    const prevX = groupRef.current.position.x;
+    const prevZ = groupRef.current.position.z;
+    const nextX = THREE.MathUtils.lerp(prevX, player.x, Math.min(1, delta * 8));
+    const nextZ = THREE.MathUtils.lerp(prevZ, player.z, Math.min(1, delta * 8));
+    const moveDx = nextX - prevX;
+    const moveDz = nextZ - prevZ;
+    movingRef.current = Math.hypot(moveDx, moveDz) > 0.005;
+    if (movingRef.current) facingRef.current = Math.atan2(moveDx, moveDz);
+    groupRef.current.position.set(nextX, 0, nextZ);
+    groupRef.current.rotation.y = facingRef.current;
   });
 
   return (
     <group>
-      <mesh ref={meshRef} position={[player.x, 0.6, player.z]}>
-        <capsuleGeometry args={[0.4, 0.6, 4, 8]} />
-        <meshStandardMaterial color={player.color} />
-      </mesh>
-      <Text position={[player.x, 1.5, player.z]} fontSize={0.35} color={player.color} anchorX="center">
+      <group ref={groupRef} position={[player.x, 0, player.z]}>
+        <BlockyAvatar color={player.color} movingRef={movingRef} />
+      </group>
+      <Text position={[player.x, 2.1, player.z]} fontSize={0.35} color={player.color} anchorX="center">
         {player.username}
       </Text>
       {bubble && (
         <Text
-          position={[player.x, 2.05, player.z]}
+          position={[player.x, 2.65, player.z]}
           fontSize={0.28}
           color="#f8fafc"
           maxWidth={3}
@@ -158,7 +172,7 @@ function OtherPlayerAvatar({ player, bubble, emote }: { player: OtherPlayer; bub
           {bubble}
         </Text>
       )}
-      {emote && <EmoteBubble x={player.x} z={player.z} emoji={emote.emoji} emoteKey={emote.key} y={2.05} />}
+      {emote && <EmoteBubble x={player.x} z={player.z} emoji={emote.emoji} emoteKey={emote.key} y={2.65} />}
     </group>
   );
 }

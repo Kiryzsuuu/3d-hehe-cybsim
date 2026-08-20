@@ -6,6 +6,7 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import { EMOTES, type OtherPlayer, type EmoteState } from "@/hooks/usePresenceSocket";
+import { BlockyAvatar } from "./avatar";
 
 const MOVE_SPEED = 6;
 
@@ -224,31 +225,44 @@ export function EmoteBubble({ x, z, emoji, emoteKey, y = 2.6 }: { x: number; z: 
   );
 }
 
-// Renders other players physically inside this FPV room as capsules with a
-// floating username label, lerped toward their latest reported position
-// since updates only arrive ~every 150ms over the socket. When a chat bubble
-// is active for this player it's shown above the username instead of a
-// separate UI panel, like a speech bubble in a physical space.
+// Renders other players physically inside this FPV room as blocky humanoids
+// with a floating username label, lerped toward their latest reported
+// position since updates only arrive ~every 150ms over the socket. Whether
+// it's currently "walking" and which way it's facing are both inferred from
+// that same lerp delta, since the server only ever tells us the destination.
+// When a chat bubble is active for this player it's shown above the
+// username instead of a separate UI panel, like a speech bubble in a
+// physical space.
 function OtherFpvPlayer({ player, bubble, emote }: { player: OtherPlayer; bubble?: string; emote?: EmoteState }) {
-  const meshRef = useRef<THREE.Mesh>(null);
+  const groupRef = useRef<THREE.Group>(null);
+  const movingRef = useRef(false);
+  const facingRef = useRef(0);
+
   useFrame((_, delta) => {
-    if (!meshRef.current) return;
-    meshRef.current.position.x = THREE.MathUtils.lerp(meshRef.current.position.x, player.x, Math.min(1, delta * 8));
-    meshRef.current.position.z = THREE.MathUtils.lerp(meshRef.current.position.z, player.z, Math.min(1, delta * 8));
+    if (!groupRef.current) return;
+    const prevX = groupRef.current.position.x;
+    const prevZ = groupRef.current.position.z;
+    const nextX = THREE.MathUtils.lerp(prevX, player.x, Math.min(1, delta * 8));
+    const nextZ = THREE.MathUtils.lerp(prevZ, player.z, Math.min(1, delta * 8));
+    const moveDx = nextX - prevX;
+    const moveDz = nextZ - prevZ;
+    movingRef.current = Math.hypot(moveDx, moveDz) > 0.005;
+    if (movingRef.current) facingRef.current = Math.atan2(moveDx, moveDz);
+    groupRef.current.position.set(nextX, 0, nextZ);
+    groupRef.current.rotation.y = facingRef.current;
   });
 
   return (
     <group>
-      <mesh ref={meshRef} position={[player.x, 0.9, player.z]}>
-        <capsuleGeometry args={[0.35, 1, 4, 8]} />
-        <meshStandardMaterial color={player.color} />
-      </mesh>
-      <Text position={[player.x, 1.9, player.z]} fontSize={0.3} color={player.color} anchorX="center">
+      <group ref={groupRef} position={[player.x, 0, player.z]}>
+        <BlockyAvatar color={player.color} movingRef={movingRef} />
+      </group>
+      <Text position={[player.x, 2.15, player.z]} fontSize={0.3} color={player.color} anchorX="center">
         {player.username}
       </Text>
       {bubble && (
         <Text
-          position={[player.x, 2.35, player.z]}
+          position={[player.x, 2.6, player.z]}
           fontSize={0.24}
           color="#f8fafc"
           maxWidth={2.5}
@@ -260,7 +274,7 @@ function OtherFpvPlayer({ player, bubble, emote }: { player: OtherPlayer; bubble
           {bubble}
         </Text>
       )}
-      {emote && <EmoteBubble x={player.x} z={player.z} emoji={emote.emoji} emoteKey={emote.key} />}
+      {emote && <EmoteBubble x={player.x} z={player.z} emoji={emote.emoji} emoteKey={emote.key} y={2.85} />}
     </group>
   );
 }
