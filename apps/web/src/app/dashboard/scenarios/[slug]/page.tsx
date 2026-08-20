@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { getScenario, startScenario, completeScenario, submitFlag, type ScenarioDetail } from "@/lib/api";
+import { announceUnlocked } from "@/components/AchievementToast";
 import { useRequireAuth } from "@/hooks/useAuth";
 import AppHeader from "@/components/layout/AppHeader";
 
@@ -52,6 +53,7 @@ export default function ScenarioDetailPage() {
       } else {
         setFlagStatus("correct");
         setFlagPoints(result.pointsAwarded);
+        announceUnlocked(result.newlyUnlocked);
       }
     } catch {
       setFlagStatus("wrong");
@@ -62,7 +64,8 @@ export default function ScenarioDetailPage() {
     if (!scenario) return;
     setSubmitting(true);
     try {
-      await completeScenario(scenario.slug, totalScore);
+      const res = await completeScenario(scenario.slug, totalScore);
+      announceUnlocked(res.newlyUnlocked);
       setCompletedJustNow(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal menyelesaikan skenario");

@@ -6,6 +6,7 @@ import { Canvas } from "@react-three/fiber";
 import { Line, PointerLockControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 import { startScenario, completeScenario } from "@/lib/api";
+import { announceUnlocked } from "@/components/AchievementToast";
 import {
   FpvRig,
   FpvRoom,
@@ -182,9 +183,11 @@ export default function NetworkRoom() {
   useEffect(() => {
     if (!connectedPair || bonusAwarded) return;
     setBonusAwarded(true);
-    completeScenario(TARGET_SCENARIO_SLUG, CABLE_BONUS_SCORE).catch(() => {
-      setBonusAwarded(false);
-    });
+    completeScenario(TARGET_SCENARIO_SLUG, CABLE_BONUS_SCORE)
+      .then((res) => announceUnlocked(res.newlyUnlocked))
+      .catch(() => {
+        setBonusAwarded(false);
+      });
   }, [connectedPair, bonusAwarded]);
 
   const hoveredLabel = hoveredId && !connectedPair ? `Port ${DEVICES.find((d) => d.id === hoveredId)?.label}` : null;

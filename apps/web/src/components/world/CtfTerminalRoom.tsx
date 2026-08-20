@@ -5,6 +5,7 @@ import { Canvas } from "@react-three/fiber";
 import { PointerLockControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 import { getScenario, submitFlag, type ScenarioDetail } from "@/lib/api";
+import { announceUnlocked } from "@/components/AchievementToast";
 import {
   FpvRig,
   FpvRoom,
@@ -136,6 +137,7 @@ export default function CtfTerminalRoom() {
       else {
         setStatus("hacked");
         setPointsAwarded(result.pointsAwarded);
+        announceUnlocked(result.newlyUnlocked);
       }
     } catch {
       setStatus("wrong");

@@ -90,6 +90,13 @@ function metricValue(stats: ProfileStats, metric: AchievementDef["metric"]): num
   return stats[metric];
 }
 
+// Achievements newly true in `after` that weren't in `before`, keyed by id
+// for an O(1) lookup rather than re-scanning the array per achievement.
+export function diffNewlyUnlocked(before: AchievementResult[], after: AchievementResult[]): AchievementResult[] {
+  const wasUnlocked = new Set(before.filter((a) => a.unlocked).map((a) => a.id));
+  return after.filter((a) => a.unlocked && !wasUnlocked.has(a.id));
+}
+
 export function evaluateAchievements(stats: ProfileStats): AchievementResult[] {
   return ACHIEVEMENTS.map((def) => {
     const value = metricValue(stats, def.metric);

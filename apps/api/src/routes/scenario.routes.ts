@@ -9,7 +9,9 @@ import {
   completeScenario,
   submitFlag,
   getLeaderboard,
+  getProfileStats,
 } from "../services/scenario/scenario.service.js";
+import { evaluateAchievements, diffNewlyUnlocked } from "../services/achievement/achievement.service.js";
 
 const completeBodySchema = z.object({
   score: z.number().int().min(0).max(1000),
@@ -62,8 +64,10 @@ export async function scenarioRoutes(app: FastifyInstance) {
     const scenario = await getScenarioBySlug(slug);
     if (!scenario) return reply.status(404).send({ error: "Scenario not found" });
 
+    const before = evaluateAchievements(await getProfileStats(sub));
     const progress = await completeScenario(sub, scenario.id, parsed.data.score);
-    return reply.send({ progress });
+    const after = evaluateAchievements(await getProfileStats(sub));
+    return reply.send({ progress, newlyUnlocked: diffNewlyUnlocked(before, after) });
   });
 
   app.post(
@@ -85,8 +89,10 @@ export async function scenarioRoutes(app: FastifyInstance) {
       const scenario = await getScenarioBySlug(slug);
       if (!scenario) return reply.status(404).send({ error: "Scenario not found" });
 
+      const before = evaluateAchievements(await getProfileStats(sub));
       const result = await submitFlag(sub, scenario.id, scenario.data, parsed.data.flag);
-      return reply.send(result);
+      const after = evaluateAchievements(await getProfileStats(sub));
+      return reply.send({ ...result, newlyUnlocked: diffNewlyUnlocked(before, after) });
     }
   );
 

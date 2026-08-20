@@ -105,7 +105,7 @@ export function startScenario(slug: string) {
 }
 
 export function completeScenario(slug: string, score: number) {
-  return request<{ progress: ProgressEntry }>(`/api/scenarios/${slug}/complete`, {
+  return request<{ progress: ProgressEntry; newlyUnlocked: Achievement[] }>(`/api/scenarios/${slug}/complete`, {
     method: "POST",
     headers: authHeader(),
     body: JSON.stringify({ score }),
@@ -116,6 +116,7 @@ export interface SubmitFlagResult {
   correct: boolean;
   alreadyCaptured: boolean;
   pointsAwarded: number;
+  newlyUnlocked: Achievement[];
 }
 
 export function submitFlag(slug: string, flag: string) {
