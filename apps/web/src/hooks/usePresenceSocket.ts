@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export interface OtherPlayer {
   userId: string;
   username: string;
+  color: string;
   x: number;
   z: number;
 }

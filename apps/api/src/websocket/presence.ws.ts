@@ -1,9 +1,11 @@
 import type { FastifyInstance } from "fastify";
 import type { JwtPayload } from "@cybersim/types";
+import { prisma } from "../db/client.js";
 
 interface PlayerState {
   userId: string;
   username: string;
+  color: string;
   x: number;
   z: number;
   socket: any;
@@ -11,7 +13,7 @@ interface PlayerState {
 
 interface PresenceEvent {
   type: "snapshot";
-  players: { userId: string; username: string; x: number; z: number }[];
+  players: { userId: string; username: string; color: string; x: number; z: number }[];
 }
 
 // Single shared room ("world"). Position updates overwrite state and trigger
@@ -22,7 +24,13 @@ const players = new Map<string, PlayerState>();
 function broadcastSnapshot() {
   const snapshot: PresenceEvent = {
     type: "snapshot",
-    players: Array.from(players.values()).map((p) => ({ userId: p.userId, username: p.username, x: p.x, z: p.z })),
+    players: Array.from(players.values()).map((p) => ({
+      userId: p.userId,
+      username: p.username,
+      color: p.color,
+      x: p.x,
+      z: p.z,
+    })),
   };
   const payload = JSON.stringify(snapshot);
   for (const p of players.values()) p.socket.send(payload);
@@ -41,8 +49,24 @@ export async function presenceWebSocket(app: FastifyInstance) {
     }
 
     const userId = payload.sub;
-    players.set(userId, { userId, username: payload.username, x: 0, z: 0, socket });
-    broadcastSnapshot();
+
+    prisma.user
+      .findUnique({ where: { id: userId }, select: { avatarColor: true } })
+      .then((user) => {
+        players.set(userId, {
+          userId,
+          username: payload.username,
+          color: user?.avatarColor ?? "#22d3ee",
+          x: 0,
+          z: 0,
+          socket,
+        });
+        broadcastSnapshot();
+      })
+      .catch(() => {
+        players.set(userId, { userId, username: payload.username, color: "#22d3ee", x: 0, z: 0, socket });
+        broadcastSnapshot();
+      });
 
     socket.on("message", (raw: Buffer) => {
       let message: unknown;

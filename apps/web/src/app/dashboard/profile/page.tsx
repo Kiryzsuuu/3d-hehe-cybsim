@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getProfile, type ProfileResponse } from "@/lib/api";
+import { getProfile, getAvatarColors, setAvatarColor, type ProfileResponse } from "@/lib/api";
 import { useRequireAuth } from "@/hooks/useAuth";
 import AppHeader from "@/components/layout/AppHeader";
 
@@ -22,16 +22,34 @@ function StatCard({ label, value }: { label: string; value: string | number }) {
 export default function ProfilePage() {
   const { ready } = useRequireAuth();
   const [data, setData] = useState<ProfileResponse | null>(null);
+  const [colors, setColors] = useState<string[]>([]);
+  const [savingColor, setSavingColor] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!ready) return;
-    getProfile()
-      .then(setData)
+    Promise.all([getProfile(), getAvatarColors()])
+      .then(([profile, avatars]) => {
+        setData(profile);
+        setColors(avatars.colors);
+      })
       .catch((err) => setError(err instanceof Error ? err.message : "Gagal memuat profil"))
       .finally(() => setLoading(false));
   }, [ready]);
+
+  const pickColor = async (color: string) => {
+    if (!data || savingColor) return;
+    setSavingColor(true);
+    try {
+      await setAvatarColor(color);
+      setData({ ...data, user: { ...data.user, avatarColor: color } });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal menyimpan warna avatar");
+    } finally {
+      setSavingColor(false);
+    }
+  };
 
   if (!ready) return null;
 
@@ -45,17 +63,42 @@ export default function ProfilePage() {
 
       {data && (
         <>
-          <div className="mb-6 rounded-lg border border-gray-800 p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <div className="text-lg font-medium">{data.user.username}</div>
-                <div className="text-sm text-gray-500">{data.user.email}</div>
-              </div>
-              <div className="text-right text-xs text-gray-500">
-                {data.user.role === "admin" && <div className="mb-1 text-yellow-400">Admin</div>}
-                Bergabung sejak {new Date(data.user.createdAt).toLocaleDateString("id-ID")}
+          <div className="mb-6 flex items-center gap-4 rounded-lg border border-gray-800 p-4">
+            <div
+              className="h-14 w-14 shrink-0 rounded-full border-2 border-gray-700"
+              style={{ backgroundColor: data.user.avatarColor }}
+            />
+            <div className="flex-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-lg font-medium">{data.user.username}</div>
+                  <div className="text-sm text-gray-500">{data.user.email}</div>
+                </div>
+                <div className="text-right text-xs text-gray-500">
+                  {data.user.role === "admin" && <div className="mb-1 text-yellow-400">Admin</div>}
+                  Bergabung sejak {new Date(data.user.createdAt).toLocaleDateString("id-ID")}
+                </div>
               </div>
             </div>
+          </div>
+
+          <h2 className="mb-3 text-sm uppercase tracking-wide text-gray-500">Warna Avatar</h2>
+          <p className="mb-2 text-xs text-gray-500">
+            Warna karakter Anda di World dan Room Multiplayer, terlihat oleh pemain lain secara real-time.
+          </p>
+          <div className="mb-6 flex flex-wrap gap-2">
+            {colors.map((color) => (
+              <button
+                key={color}
+                onClick={() => pickColor(color)}
+                disabled={savingColor}
+                className={`h-9 w-9 rounded-full border-2 transition ${
+                  data.user.avatarColor === color ? "border-white scale-110" : "border-transparent hover:border-gray-500"
+                }`}
+                style={{ backgroundColor: color }}
+                aria-label={color}
+              />
+            ))}
           </div>
 
           <h2 className="mb-3 text-sm uppercase tracking-wide text-gray-500">Statistik</h2>

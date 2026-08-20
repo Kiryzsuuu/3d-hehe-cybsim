@@ -181,13 +181,25 @@ export interface ProfileStats {
 }
 
 export interface ProfileResponse {
-  user: { id: string; email: string; username: string; role: "user" | "admin"; createdAt: string };
+  user: { id: string; email: string; username: string; role: "user" | "admin"; avatarColor: string; createdAt: string };
   stats: ProfileStats;
   history: ProgressEntry[];
 }
 
 export function getProfile() {
   return request<ProfileResponse>("/api/profile", { headers: authHeader() });
+}
+
+export function getAvatarColors() {
+  return request<{ colors: string[] }>("/api/profile/avatar-colors");
+}
+
+export function setAvatarColor(color: string) {
+  return request<{ user: { id: string; avatarColor: string } }>("/api/profile/avatar", {
+    method: "POST",
+    headers: authHeader(),
+    body: JSON.stringify({ color }),
+  });
 }
 
 // --- Admin ---

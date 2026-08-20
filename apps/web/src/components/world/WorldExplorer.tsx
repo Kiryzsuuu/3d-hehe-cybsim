@@ -7,6 +7,7 @@ import { Grid, Text } from "@react-three/drei";
 import * as THREE from "three";
 import { usePresenceSocket, type OtherPlayer } from "@/hooks/usePresenceSocket";
 import { useRequireAuth } from "@/hooks/useAuth";
+import { getProfile } from "@/lib/api";
 
 interface Station {
   id: string;
@@ -59,10 +60,12 @@ function Player({
   positionRef,
   keysRef,
   onMove,
+  color,
 }: {
   positionRef: React.MutableRefObject<{ x: number; z: number }>;
   keysRef: React.MutableRefObject<Record<string, boolean>>;
   onMove: (x: number, z: number) => void;
+  color: string;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const { camera } = useThree();
@@ -101,7 +104,7 @@ function Player({
   return (
     <mesh ref={meshRef}>
       <capsuleGeometry args={[0.4, 0.6, 4, 8]} />
-      <meshStandardMaterial color="#22d3ee" />
+      <meshStandardMaterial color={color} />
     </mesh>
   );
 }
@@ -121,9 +124,9 @@ function OtherPlayerAvatar({ player }: { player: OtherPlayer }) {
     <group>
       <mesh ref={meshRef} position={[player.x, 0.6, player.z]}>
         <capsuleGeometry args={[0.4, 0.6, 4, 8]} />
-        <meshStandardMaterial color="#f472b6" />
+        <meshStandardMaterial color={player.color} />
       </mesh>
-      <Text position={[player.x, 1.5, player.z]} fontSize={0.35} color="#f472b6" anchorX="center">
+      <Text position={[player.x, 1.5, player.z]} fontSize={0.35} color={player.color} anchorX="center">
         {player.username}
       </Text>
     </group>
@@ -136,12 +139,14 @@ function Scene({
   nearStation,
   onMove,
   others,
+  myColor,
 }: {
   positionRef: React.MutableRefObject<{ x: number; z: number }>;
   keysRef: React.MutableRefObject<Record<string, boolean>>;
   nearStation: Station | null;
   onMove: (x: number, z: number) => void;
   others: OtherPlayer[];
+  myColor: string;
 }) {
   return (
     <>
@@ -158,7 +163,7 @@ function Scene({
       {others.map((p) => (
         <OtherPlayerAvatar key={p.userId} player={p} />
       ))}
-      <Player positionRef={positionRef} keysRef={keysRef} onMove={onMove} />
+      <Player positionRef={positionRef} keysRef={keysRef} onMove={onMove} color={myColor} />
     </>
   );
 }
@@ -169,7 +174,14 @@ export default function WorldExplorer() {
   const positionRef = useRef({ x: 0, z: 0 });
   const keysRef = useRef<Record<string, boolean>>({});
   const [nearStation, setNearStation] = useState<Station | null>(null);
+  const [myColor, setMyColor] = useState("#22d3ee");
   const { others, reportPosition } = usePresenceSocket(user?.id);
+
+  useEffect(() => {
+    getProfile()
+      .then((res) => setMyColor(res.user.avatarColor))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -205,7 +217,14 @@ export default function WorldExplorer() {
   return (
     <div className="relative h-[36rem] w-full overflow-hidden rounded-lg border border-gray-800 bg-black">
       <Canvas camera={{ position: [0, 9, 9], fov: 50 }}>
-        <Scene positionRef={positionRef} keysRef={keysRef} nearStation={nearStation} onMove={reportPosition} others={others} />
+        <Scene
+          positionRef={positionRef}
+          keysRef={keysRef}
+          nearStation={nearStation}
+          onMove={reportPosition}
+          others={others}
+          myColor={myColor}
+        />
       </Canvas>
 
       <div className="pointer-events-none absolute left-4 top-4 rounded-md bg-black/60 px-3 py-2 text-xs text-gray-300">
