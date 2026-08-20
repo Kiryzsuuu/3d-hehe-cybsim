@@ -8,6 +8,7 @@ import * as THREE from "three";
 import { usePresenceSocket, EMOTES, type OtherPlayer, type EmoteState } from "@/hooks/usePresenceSocket";
 import { EmoteBubble } from "./fpv";
 import { BlockyAvatar } from "./avatar";
+import { TouchJoystick, TouchActionButtons, useIsTouchDevice } from "./TouchControls";
 import { useRequireAuth } from "@/hooks/useAuth";
 import { getProfile } from "@/lib/api";
 
@@ -228,6 +229,13 @@ export default function WorldExplorer() {
   const [chatOpen, setChatOpen] = useState(false);
   const [chatValue, setChatValue] = useState("");
   const chatInputRef = useRef<HTMLInputElement>(null);
+  const isTouch = useIsTouchDevice();
+
+  const enterNearStation = () => {
+    if (!nearStation) return;
+    setReady(false);
+    setTimeout(() => router.push(nearStation.href), 200);
+  };
 
   useEffect(() => {
     getProfile()
@@ -241,8 +249,7 @@ export default function WorldExplorer() {
       const key = e.key.toLowerCase();
       keysRef.current[key] = true;
       if (key === "e" && nearStation) {
-        setReady(false);
-        setTimeout(() => router.push(nearStation.href), 200);
+        enterNearStation();
       }
       if (key === "t") {
         e.preventDefault();
@@ -320,8 +327,23 @@ export default function WorldExplorer() {
       </Canvas>
 
       <div className="pointer-events-none absolute left-4 top-4 rounded-md bg-black/60 px-3 py-2 text-xs text-gray-300">
-        WASD / panah untuk jalan · T untuk chat · 1-4 untuk emote
+        {isTouch
+          ? "Geser joystick untuk jalan · tombol kanan bawah untuk aksi"
+          : "WASD / panah untuk jalan · T untuk chat · 1-4 untuk emote"}
       </div>
+
+      {isTouch && !chatOpen && (
+        <>
+          <TouchJoystick keysRef={keysRef} />
+          <TouchActionButtons
+            onInteract={nearStation ? enterNearStation : undefined}
+            interactLabel={nearStation ? `Masuk ${nearStation.label}` : undefined}
+            onChat={() => setChatOpen(true)}
+            onEmote={(emoji) => sendEmote(emoji)}
+            emotes={EMOTES}
+          />
+        </>
+      )}
 
       {chatOpen && (
         <div className="absolute bottom-16 left-1/2 w-72 -translate-x-1/2">
