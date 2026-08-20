@@ -7,6 +7,8 @@ import { Line, PointerLockControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 import { startScenario, completeScenario } from "@/lib/api";
 import { FpvRig, FpvRoom, FpvOverlay, useFpvKeys, useFpvInteraction } from "./fpv";
+import { useRequireAuth } from "@/hooks/useAuth";
+import { usePresenceSocket } from "@/hooks/usePresenceSocket";
 
 interface Device {
   id: string;
@@ -116,6 +118,8 @@ function Scene({ keysRef, selectedId, connectedPair, portMeshesRef }: SceneProps
 
 export default function NetworkRoom() {
   const router = useRouter();
+  const { user } = useRequireAuth();
+  const { others } = usePresenceSocket(user?.id);
   const keysRef = useFpvKeys();
   const portMeshesRef = useRef<Record<string, THREE.Object3D | null>>({});
   const cameraRef = useRef<THREE.Camera | null>(null);
@@ -175,6 +179,12 @@ export default function NetworkRoom() {
         entryBody="WASD untuk jalan, mouse untuk lihat sekeliling, klik port merah di router lalu klik port di switch untuk menyambungkan kabel. ESC untuk keluar mode FPV."
         hoveredLabel={hoveredLabel}
       />
+
+      {others.length > 0 && (
+        <div className="pointer-events-none absolute left-4 top-4 rounded-md bg-black/60 px-3 py-2 text-xs text-pink-300">
+          {others.length} pemain lain online
+        </div>
+      )}
 
       {connectedPair && (
         <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2 rounded-md border border-green-700 bg-black/80 px-4 py-3 text-center">

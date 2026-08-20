@@ -6,6 +6,8 @@ import { PointerLockControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 import { getScenario, submitFlag, type ScenarioDetail } from "@/lib/api";
 import { FpvRig, FpvRoom, FpvOverlay, useFpvKeys, useFpvInteraction } from "./fpv";
+import { useRequireAuth } from "@/hooks/useAuth";
+import { usePresenceSocket } from "@/hooks/usePresenceSocket";
 
 const SCENARIO_SLUG = "ctf-decode-flag";
 const TERMINAL_POSITION: [number, number, number] = [0, 0, -8];
@@ -73,6 +75,8 @@ function Scene({ keysRef, hacked, hint, terminalRef }: SceneProps) {
 }
 
 export default function CtfTerminalRoom() {
+  const { user } = useRequireAuth();
+  const { others } = usePresenceSocket(user?.id);
   const keysRef = useFpvKeys();
   const terminalRef = useRef<Record<string, THREE.Object3D | null>>({});
   const cameraRef = useRef<THREE.Camera | null>(null);
@@ -131,6 +135,12 @@ export default function CtfTerminalRoom() {
           entryBody="WASD untuk jalan, mouse untuk lihat sekeliling. Dekati terminal di depan dan klik untuk membukanya, lalu pecahkan flag CTF-nya."
           hoveredLabel={hoveredId && status !== "hacked" ? "Buka Terminal" : null}
         />
+      )}
+
+      {others.length > 0 && !panelOpen && (
+        <div className="pointer-events-none absolute left-4 top-4 rounded-md bg-black/60 px-3 py-2 text-xs text-pink-300">
+          {others.length} pemain lain online
+        </div>
       )}
 
       {panelOpen && status !== "hacked" && (

@@ -13,6 +13,8 @@ import {
   stopDvwa,
 } from "@/lib/api";
 import { FpvRig, FpvRoom, FpvOverlay, useFpvKeys, useFpvInteraction } from "./fpv";
+import { useRequireAuth } from "@/hooks/useAuth";
+import { usePresenceSocket } from "@/hooks/usePresenceSocket";
 
 type ConsoleState = "off" | "on" | "busy";
 
@@ -89,6 +91,8 @@ function Scene({ keysRef, states, buttonMeshesRef }: SceneProps) {
 }
 
 export default function ServerConsoleRoom() {
+  const { user } = useRequireAuth();
+  const { others } = usePresenceSocket(user?.id);
   const keysRef = useFpvKeys();
   const buttonMeshesRef = useRef<Record<string, THREE.Object3D | null>>({});
   const cameraRef = useRef<THREE.Camera | null>(null);
@@ -160,6 +164,12 @@ export default function ServerConsoleRoom() {
         entryBody="WASD untuk jalan, mouse untuk lihat sekeliling, klik tombol power di rak untuk menyalakan/mematikan container Docker sungguhan."
         hoveredLabel={hoveredLabel}
       />
+
+      {others.length > 0 && (
+        <div className="pointer-events-none absolute left-4 top-4 rounded-md bg-black/60 px-3 py-2 text-xs text-pink-300">
+          {others.length} pemain lain online
+        </div>
+      )}
 
       {error && (
         <div className="absolute top-4 left-1/2 -translate-x-1/2 rounded-md bg-red-950/80 px-3 py-1.5 text-xs text-red-300">
