@@ -5,6 +5,7 @@ export interface AuthUser {
   email: string;
   username: string;
   role: "user" | "admin";
+  hasSeenTutorial: boolean;
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
@@ -193,7 +194,15 @@ export interface Achievement {
 }
 
 export interface ProfileResponse {
-  user: { id: string; email: string; username: string; role: "user" | "admin"; avatarColor: string; createdAt: string };
+  user: {
+    id: string;
+    email: string;
+    username: string;
+    role: "user" | "admin";
+    avatarColor: string;
+    hasSeenTutorial: boolean;
+    createdAt: string;
+  };
   stats: ProfileStats;
   history: ProgressEntry[];
   achievements: Achievement[];
@@ -212,6 +221,13 @@ export function setAvatarColor(color: string) {
     method: "POST",
     headers: authHeader(),
     body: JSON.stringify({ color }),
+  });
+}
+
+export function markTutorialComplete() {
+  return request<{ user: { id: string; hasSeenTutorial: boolean } }>("/api/profile/tutorial-complete", {
+    method: "POST",
+    headers: authHeader(),
   });
 }
 

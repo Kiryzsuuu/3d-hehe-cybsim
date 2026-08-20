@@ -20,7 +20,7 @@ export default function RegisterPage() {
     try {
       const { token, user } = await register(email, username, password);
       storeSession(token, user);
-      router.push("/dashboard");
+      router.push(user.hasSeenTutorial ? "/dashboard" : "/tutorial");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {

@@ -19,7 +19,7 @@ export default function LoginPage() {
     try {
       const { token, user } = await login(email, password);
       storeSession(token, user);
-      router.push("/dashboard");
+      router.push(user.hasSeenTutorial ? "/dashboard" : "/tutorial");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {

@@ -26,7 +26,15 @@ export async function profileRoutes(app: FastifyInstance) {
 
     const user = await prisma.user.findUnique({
       where: { id: sub },
-      select: { id: true, email: true, username: true, role: true, avatarColor: true, createdAt: true },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        role: true,
+        avatarColor: true,
+        hasSeenTutorial: true,
+        createdAt: true,
+      },
     });
     if (!user) return reply.status(404).send({ error: "User not found" });
 
@@ -49,6 +57,16 @@ export async function profileRoutes(app: FastifyInstance) {
       where: { id: sub },
       data: { avatarColor: parsed.data.color },
       select: { id: true, avatarColor: true },
+    });
+    return reply.send({ user });
+  });
+
+  app.post("/api/profile/tutorial-complete", { onRequest: [app.authenticate] }, async (req, reply) => {
+    const { sub } = req.user as JwtPayload;
+    const user = await prisma.user.update({
+      where: { id: sub },
+      data: { hasSeenTutorial: true },
+      select: { id: true, hasSeenTutorial: true },
     });
     return reply.send({ user });
   });
