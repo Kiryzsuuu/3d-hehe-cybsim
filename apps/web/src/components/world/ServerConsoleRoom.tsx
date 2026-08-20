@@ -12,7 +12,7 @@ import {
   startDvwa,
   stopDvwa,
 } from "@/lib/api";
-import { FpvRig, FpvRoom, FpvOverlay, FpvPresenceReporter, FpvOtherPlayers, useFpvKeys, useFpvInteraction } from "./fpv";
+import { FpvRig, FpvRoom, FpvOverlay, FpvPresenceReporter, FpvOtherPlayers, FpvChatBox, useFpvKeys, useFpvInteraction } from "./fpv";
 import { useRequireAuth } from "@/hooks/useAuth";
 import { usePresenceSocket, type OtherPlayer } from "@/hooks/usePresenceSocket";
 
@@ -72,10 +72,11 @@ interface SceneProps {
   states: Record<string, ConsoleState>;
   buttonMeshesRef: React.MutableRefObject<Record<string, THREE.Object3D | null>>;
   others: OtherPlayer[];
+  chatBubbles: Record<string, string>;
   reportPosition: (x: number, z: number) => void;
 }
 
-function Scene({ keysRef, states, buttonMeshesRef, others, reportPosition }: SceneProps) {
+function Scene({ keysRef, states, buttonMeshesRef, others, chatBubbles, reportPosition }: SceneProps) {
   return (
     <>
       <ambientLight intensity={0.9} />
@@ -89,7 +90,7 @@ function Scene({ keysRef, states, buttonMeshesRef, others, reportPosition }: Sce
           buttonRef={(el) => (buttonMeshesRef.current[c.id] = el)}
         />
       ))}
-      <FpvOtherPlayers players={others} />
+      <FpvOtherPlayers players={others} chatBubbles={chatBubbles} />
       <FpvPresenceReporter reportPosition={reportPosition} />
       <FpvRig keysRef={keysRef} lookAt={[0, 1, -8]} />
     </>
@@ -98,7 +99,7 @@ function Scene({ keysRef, states, buttonMeshesRef, others, reportPosition }: Sce
 
 export default function ServerConsoleRoom() {
   const { user } = useRequireAuth();
-  const { others, reportPosition } = usePresenceSocket(user?.id, ROOM_ID);
+  const { others, reportPosition, chatBubbles, sendChat } = usePresenceSocket(user?.id, ROOM_ID);
   const keysRef = useFpvKeys();
   const buttonMeshesRef = useRef<Record<string, THREE.Object3D | null>>({});
   const cameraRef = useRef<THREE.Camera | null>(null);
@@ -165,6 +166,7 @@ export default function ServerConsoleRoom() {
           states={states}
           buttonMeshesRef={buttonMeshesRef}
           others={others}
+          chatBubbles={chatBubbles}
           reportPosition={reportPosition}
         />
         <PointerLockControls onLock={() => setLocked(true)} onUnlock={() => setLocked(false)} />
@@ -173,9 +175,10 @@ export default function ServerConsoleRoom() {
       <FpvOverlay
         locked={locked}
         entryTitle="Klik untuk masuk mode FPV"
-        entryBody="WASD untuk jalan, mouse untuk lihat sekeliling, klik tombol power di rak untuk menyalakan/mematikan container Docker sungguhan."
+        entryBody="WASD untuk jalan, mouse untuk lihat sekeliling, klik tombol power di rak untuk menyalakan/mematikan container Docker sungguhan. Tekan T untuk chat."
         hoveredLabel={hoveredLabel}
       />
+      <FpvChatBox locked={locked} onSend={sendChat} />
 
       {others.length > 0 && (
         <div className="pointer-events-none absolute left-4 top-4 rounded-md bg-black/60 px-3 py-2 text-xs text-pink-300">

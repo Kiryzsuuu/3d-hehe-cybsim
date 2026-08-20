@@ -173,8 +173,10 @@ export function FpvPresenceReporter({ reportPosition }: { reportPosition: (x: nu
 
 // Renders other players physically inside this FPV room as capsules with a
 // floating username label, lerped toward their latest reported position
-// since updates only arrive ~every 150ms over the socket.
-function OtherFpvPlayer({ player }: { player: OtherPlayer }) {
+// since updates only arrive ~every 150ms over the socket. When a chat bubble
+// is active for this player it's shown above the username instead of a
+// separate UI panel, like a speech bubble in a physical space.
+function OtherFpvPlayer({ player, bubble }: { player: OtherPlayer; bubble?: string }) {
   const meshRef = useRef<THREE.Mesh>(null);
   useFrame((_, delta) => {
     if (!meshRef.current) return;
@@ -191,17 +193,86 @@ function OtherFpvPlayer({ player }: { player: OtherPlayer }) {
       <Text position={[player.x, 1.9, player.z]} fontSize={0.3} color={player.color} anchorX="center">
         {player.username}
       </Text>
+      {bubble && (
+        <Text
+          position={[player.x, 2.35, player.z]}
+          fontSize={0.24}
+          color="#f8fafc"
+          maxWidth={2.5}
+          textAlign="center"
+          anchorX="center"
+          outlineWidth={0.015}
+          outlineColor="#000000"
+        >
+          {bubble}
+        </Text>
+      )}
     </group>
   );
 }
 
-export function FpvOtherPlayers({ players }: { players: OtherPlayer[] }) {
+export function FpvOtherPlayers({ players, chatBubbles }: { players: OtherPlayer[]; chatBubbles?: Record<string, string> }) {
   return (
     <>
       {players.map((p) => (
-        <OtherFpvPlayer key={p.userId} player={p} />
+        <OtherFpvPlayer key={p.userId} player={p} bubble={chatBubbles?.[p.userId]} />
       ))}
     </>
+  );
+}
+
+// Press T (or click the prompt) to open a one-line chat box, released
+// pointer lock so the OS cursor comes back for typing, same trick used by
+// CtfTerminalRoom's flag panel. Enter sends, Escape/blur cancels.
+export function FpvChatBox({ locked, onSend }: { locked: boolean; onSend: (text: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!locked || open) return;
+      if (e.key.toLowerCase() === "t") {
+        e.preventDefault();
+        document.exitPointerLock?.();
+        setOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [locked, open]);
+
+  useEffect(() => {
+    if (open) inputRef.current?.focus();
+  }, [open]);
+
+  const submit = () => {
+    if (value.trim()) onSend(value.trim());
+    setValue("");
+    setOpen(false);
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="absolute bottom-16 left-1/2 w-72 -translate-x-1/2">
+      <input
+        ref={inputRef}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submit();
+          if (e.key === "Escape") {
+            setValue("");
+            setOpen(false);
+          }
+        }}
+        onBlur={() => setOpen(false)}
+        maxLength={140}
+        placeholder="Ketik pesan, Enter untuk kirim..."
+        className="w-full rounded-md border border-accent bg-black/85 px-3 py-2 text-sm text-gray-100 outline-none"
+      />
+    </div>
   );
 }
 

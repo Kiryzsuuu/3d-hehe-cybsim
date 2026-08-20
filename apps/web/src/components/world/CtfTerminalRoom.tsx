@@ -5,7 +5,7 @@ import { Canvas } from "@react-three/fiber";
 import { PointerLockControls, Text } from "@react-three/drei";
 import * as THREE from "three";
 import { getScenario, submitFlag, type ScenarioDetail } from "@/lib/api";
-import { FpvRig, FpvRoom, FpvOverlay, FpvPresenceReporter, FpvOtherPlayers, useFpvKeys, useFpvInteraction } from "./fpv";
+import { FpvRig, FpvRoom, FpvOverlay, FpvPresenceReporter, FpvOtherPlayers, FpvChatBox, useFpvKeys, useFpvInteraction } from "./fpv";
 import { useRequireAuth } from "@/hooks/useAuth";
 import { usePresenceSocket, type OtherPlayer } from "@/hooks/usePresenceSocket";
 
@@ -46,10 +46,11 @@ interface SceneProps {
   hint: string | null;
   terminalRef: React.MutableRefObject<Record<string, THREE.Object3D | null>>;
   others: OtherPlayer[];
+  chatBubbles: Record<string, string>;
   reportPosition: (x: number, z: number) => void;
 }
 
-function Scene({ keysRef, hacked, hint, terminalRef, others, reportPosition }: SceneProps) {
+function Scene({ keysRef, hacked, hint, terminalRef, others, chatBubbles, reportPosition }: SceneProps) {
   return (
     <>
       <ambientLight intensity={0.9} />
@@ -73,7 +74,7 @@ function Scene({ keysRef, hacked, hint, terminalRef, others, reportPosition }: S
         </mesh>
       </group>
       <Terminal hacked={hacked} hint={hint} />
-      <FpvOtherPlayers players={others} />
+      <FpvOtherPlayers players={others} chatBubbles={chatBubbles} />
       <FpvPresenceReporter reportPosition={reportPosition} />
       <FpvRig keysRef={keysRef} lookAt={[TERMINAL_POSITION[0], 1.1, TERMINAL_POSITION[2]]} />
     </>
@@ -82,7 +83,7 @@ function Scene({ keysRef, hacked, hint, terminalRef, others, reportPosition }: S
 
 export default function CtfTerminalRoom() {
   const { user } = useRequireAuth();
-  const { others, reportPosition } = usePresenceSocket(user?.id, ROOM_ID);
+  const { others, reportPosition, chatBubbles, sendChat } = usePresenceSocket(user?.id, ROOM_ID);
   const keysRef = useFpvKeys();
   const terminalRef = useRef<Record<string, THREE.Object3D | null>>({});
   const cameraRef = useRef<THREE.Camera | null>(null);
@@ -136,6 +137,7 @@ export default function CtfTerminalRoom() {
           hint={hint}
           terminalRef={terminalRef}
           others={others}
+          chatBubbles={chatBubbles}
           reportPosition={reportPosition}
         />
         <PointerLockControls onLock={() => setLocked(true)} onUnlock={() => setLocked(false)} />
@@ -145,10 +147,11 @@ export default function CtfTerminalRoom() {
         <FpvOverlay
           locked={locked}
           entryTitle="Klik untuk masuk mode FPV"
-          entryBody="WASD untuk jalan, mouse untuk lihat sekeliling. Dekati terminal di depan dan klik untuk membukanya, lalu pecahkan flag CTF-nya."
+          entryBody="WASD untuk jalan, mouse untuk lihat sekeliling. Dekati terminal di depan dan klik untuk membukanya, lalu pecahkan flag CTF-nya. Tekan T untuk chat."
           hoveredLabel={hoveredId && status !== "hacked" ? "Buka Terminal" : null}
         />
       )}
+      {!panelOpen && <FpvChatBox locked={locked} onSend={sendChat} />}
 
       {others.length > 0 && !panelOpen && (
         <div className="pointer-events-none absolute left-4 top-4 rounded-md bg-black/60 px-3 py-2 text-xs text-pink-300">

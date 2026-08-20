@@ -18,7 +18,16 @@ interface PresenceEvent {
   players: { userId: string; username: string; color: string; x: number; z: number }[];
 }
 
+interface ChatEvent {
+  type: "chat";
+  room: string;
+  userId: string;
+  username: string;
+  text: string;
+}
+
 const DEFAULT_ROOM = "world";
+const MAX_CHAT_LENGTH = 140;
 
 // Players are scoped to a "room" string (the /world hub, or one of the FPV
 // room slugs) so avatars only appear to other players physically in the same
@@ -40,6 +49,17 @@ function broadcastSnapshot(room: string) {
   };
   const payload = JSON.stringify(snapshot);
   for (const p of inRoom) p.socket.send(payload);
+}
+
+// Ephemeral: not persisted anywhere, just relayed live to whoever is
+// currently sharing the room, same spirit as a proximity voice line in a
+// physical space rather than a logged chat channel.
+function broadcastChat(room: string, from: PlayerState, text: string) {
+  const event: ChatEvent = { type: "chat", room, userId: from.userId, username: from.username, text };
+  const payload = JSON.stringify(event);
+  for (const p of players.values()) {
+    if (p.room === room) p.socket.send(payload);
+  }
 }
 
 export async function presenceWebSocket(app: FastifyInstance) {
@@ -91,10 +111,17 @@ export async function presenceWebSocket(app: FastifyInstance) {
       } catch {
         return;
       }
-      const { x, z, room } = (message as { x?: number; z?: number; room?: string }) ?? {};
       const player = players.get(userId);
       if (!player) return;
 
+      const { type, text } = (message as { type?: string; text?: string }) ?? {};
+      if (type === "chat") {
+        if (typeof text !== "string" || !text.trim()) return;
+        broadcastChat(player.room, player, text.trim().slice(0, MAX_CHAT_LENGTH));
+        return;
+      }
+
+      const { x, z, room } = (message as { x?: number; z?: number; room?: string }) ?? {};
       const prevRoom = player.room;
       if (typeof room === "string" && room !== prevRoom) {
         player.room = room;

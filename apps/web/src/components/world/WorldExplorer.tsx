@@ -109,7 +109,7 @@ function Player({
   );
 }
 
-function OtherPlayerAvatar({ player }: { player: OtherPlayer }) {
+function OtherPlayerAvatar({ player, bubble }: { player: OtherPlayer; bubble?: string }) {
   const meshRef = useRef<THREE.Mesh>(null);
 
   // Smoothly lerp toward the latest reported position each frame instead of
@@ -129,6 +129,20 @@ function OtherPlayerAvatar({ player }: { player: OtherPlayer }) {
       <Text position={[player.x, 1.5, player.z]} fontSize={0.35} color={player.color} anchorX="center">
         {player.username}
       </Text>
+      {bubble && (
+        <Text
+          position={[player.x, 2.05, player.z]}
+          fontSize={0.28}
+          color="#f8fafc"
+          maxWidth={3}
+          textAlign="center"
+          anchorX="center"
+          outlineWidth={0.015}
+          outlineColor="#000000"
+        >
+          {bubble}
+        </Text>
+      )}
     </group>
   );
 }
@@ -139,6 +153,7 @@ function Scene({
   nearStation,
   onMove,
   others,
+  chatBubbles,
   myColor,
 }: {
   positionRef: React.MutableRefObject<{ x: number; z: number }>;
@@ -146,6 +161,7 @@ function Scene({
   nearStation: Station | null;
   onMove: (x: number, z: number) => void;
   others: OtherPlayer[];
+  chatBubbles: Record<string, string>;
   myColor: string;
 }) {
   return (
@@ -161,7 +177,7 @@ function Scene({
         <StationMarker key={s.id} station={s} active={nearStation?.id === s.id} />
       ))}
       {others.map((p) => (
-        <OtherPlayerAvatar key={p.userId} player={p} />
+        <OtherPlayerAvatar key={p.userId} player={p} bubble={chatBubbles[p.userId]} />
       ))}
       <Player positionRef={positionRef} keysRef={keysRef} onMove={onMove} color={myColor} />
     </>
@@ -175,7 +191,10 @@ export default function WorldExplorer() {
   const keysRef = useRef<Record<string, boolean>>({});
   const [nearStation, setNearStation] = useState<Station | null>(null);
   const [myColor, setMyColor] = useState("#22d3ee");
-  const { others, reportPosition } = usePresenceSocket(user?.id);
+  const { others, reportPosition, chatBubbles, sendChat } = usePresenceSocket(user?.id);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatValue, setChatValue] = useState("");
+  const chatInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     getProfile()
@@ -185,9 +204,15 @@ export default function WorldExplorer() {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      keysRef.current[e.key.toLowerCase()] = true;
-      if (e.key.toLowerCase() === "e" && nearStation) {
+      if (chatOpen) return;
+      const key = e.key.toLowerCase();
+      keysRef.current[key] = true;
+      if (key === "e" && nearStation) {
         router.push(nearStation.href);
+      }
+      if (key === "t") {
+        e.preventDefault();
+        setChatOpen(true);
       }
     };
     const onKeyUp = (e: KeyboardEvent) => {
@@ -199,7 +224,20 @@ export default function WorldExplorer() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("keyup", onKeyUp);
     };
-  }, [nearStation, router]);
+  }, [nearStation, router, chatOpen]);
+
+  useEffect(() => {
+    if (chatOpen) {
+      keysRef.current = {};
+      chatInputRef.current?.focus();
+    }
+  }, [chatOpen]);
+
+  const submitChat = () => {
+    if (chatValue.trim()) sendChat(chatValue.trim());
+    setChatValue("");
+    setChatOpen(false);
+  };
 
   // Poll proximity on an interval instead of every R3F frame, cheap enough and
   // keeps this component free of a useFrame dependency outside the Canvas.
@@ -223,13 +261,36 @@ export default function WorldExplorer() {
           nearStation={nearStation}
           onMove={reportPosition}
           others={others}
+          chatBubbles={chatBubbles}
           myColor={myColor}
         />
       </Canvas>
 
       <div className="pointer-events-none absolute left-4 top-4 rounded-md bg-black/60 px-3 py-2 text-xs text-gray-300">
-        WASD / panah untuk jalan
+        WASD / panah untuk jalan · T untuk chat
       </div>
+
+      {chatOpen && (
+        <div className="absolute bottom-16 left-1/2 w-72 -translate-x-1/2">
+          <input
+            ref={chatInputRef}
+            value={chatValue}
+            onChange={(e) => setChatValue(e.target.value)}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") submitChat();
+              if (e.key === "Escape") {
+                setChatValue("");
+                setChatOpen(false);
+              }
+            }}
+            onBlur={() => setChatOpen(false)}
+            maxLength={140}
+            placeholder="Ketik pesan, Enter untuk kirim..."
+            className="w-full rounded-md border border-accent bg-black/85 px-3 py-2 text-sm text-gray-100 outline-none"
+          />
+        </div>
+      )}
 
       {others.length > 0 && (
         <div className="pointer-events-none absolute left-4 top-16 rounded-md bg-black/60 px-3 py-2 text-xs text-pink-300">
