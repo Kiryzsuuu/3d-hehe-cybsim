@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { JwtPayload } from "@cybersim/types";
 import { prisma } from "../db/client.js";
 import { assertCanAccess, getWorldConversationId, sendMessage, ChatError } from "../services/chat/chat.service.js";
+import { createWsRateLimiter } from "./wsRateLimit.js";
 
 interface ChatEvent {
   type: "message" | "error";
@@ -50,6 +51,9 @@ export async function chatWebSocket(app: FastifyInstance) {
     }
     const userId = payload.sub;
     register(userId, socket);
+    // Matches the REST /api/chat send-message limit (chat.routes.ts, 20/min)
+    // so a client can't bypass it just by going through the socket instead.
+    const allowSend = createWsRateLimiter(20, 60_000);
 
     socket.on("message", async (raw: Buffer) => {
       let message: unknown;
@@ -57,6 +61,11 @@ export async function chatWebSocket(app: FastifyInstance) {
         message = JSON.parse(raw.toString());
       } catch {
         socket.send(JSON.stringify({ type: "error", body: "Malformed message" } satisfies ChatEvent));
+        return;
+      }
+
+      if (!allowSend()) {
+        socket.send(JSON.stringify({ type: "error", body: "Too many messages, slow down" } satisfies ChatEvent));
         return;
       }
 

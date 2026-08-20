@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { JwtPayload } from "@cybersim/types";
 import { getRoomState, claimObjective, completeObjective, RoomError } from "../services/room/room.service.js";
+import { createWsRateLimiter } from "./wsRateLimit.js";
 
 interface RoomEvent {
   type: "state" | "error";
@@ -45,6 +46,7 @@ export async function roomWebSocket(app: FastifyInstance) {
     }
     const userId = payload.sub;
     register(code, socket);
+    const allowAction = createWsRateLimiter(10, 5000);
 
     getRoomState(code, userId)
       .then((state) => socket.send(JSON.stringify({ type: "state", state } satisfies RoomEvent)))
@@ -57,6 +59,7 @@ export async function roomWebSocket(app: FastifyInstance) {
       } catch {
         return;
       }
+      if (!allowAction()) return;
       const { action, objectiveId } = (message as { action?: string; objectiveId?: string }) ?? {};
       if (typeof objectiveId !== "string") return;
 

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import type { JwtPayload } from "@cybersim/types";
 import { prisma } from "../db/client.js";
+import { createWsRateLimiter } from "./wsRateLimit.js";
 
 interface PlayerState {
   userId: string;
@@ -92,6 +93,14 @@ export async function presenceWebSocket(app: FastifyInstance) {
     }
 
     const userId = payload.sub;
+    // Position updates are already throttled client-side to ~150ms, but a
+    // modified/malicious client could ignore that, so the server caps it too
+    // (generously, since legitimate movement is naturally chatty). Chat and
+    // emotes get much tighter limits since a burst there is pure spam, not
+    // gameplay.
+    const allowMove = createWsRateLimiter(20, 1000);
+    const allowChat = createWsRateLimiter(3, 5000);
+    const allowEmote = createWsRateLimiter(6, 5000);
 
     prisma.user
       .findUnique({ where: { id: userId }, select: { avatarColor: true } })
@@ -132,16 +141,19 @@ export async function presenceWebSocket(app: FastifyInstance) {
 
       const { type, text, emoji } = (message as { type?: string; text?: string; emoji?: string }) ?? {};
       if (type === "chat") {
+        if (!allowChat()) return;
         if (typeof text !== "string" || !text.trim()) return;
         broadcastChat(player.room, player, text.trim().slice(0, MAX_CHAT_LENGTH));
         return;
       }
       if (type === "emote") {
+        if (!allowEmote()) return;
         if (typeof emoji !== "string" || !ALLOWED_EMOJIS.has(emoji)) return;
         broadcastEmote(player.room, player, emoji);
         return;
       }
 
+      if (!allowMove()) return;
       const { x, z, room } = (message as { x?: number; z?: number; room?: string }) ?? {};
       const prevRoom = player.room;
       if (typeof room === "string" && room !== prevRoom) {

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { parseAndRun } from "@cybersim/cli-parser";
 import type { TerminalOutputEvent, JwtPayload } from "@cybersim/types";
+import { createWsRateLimiter } from "./wsRateLimit.js";
 
 export async function terminalWebSocket(app: FastifyInstance) {
   // @fastify/websocket v9+ passes the raw ws WebSocket as the first argument
@@ -19,6 +20,7 @@ export async function terminalWebSocket(app: FastifyInstance) {
     const username = payload.username;
 
     const send = (event: TerminalOutputEvent) => socket.send(JSON.stringify(event));
+    const allowCommand = createWsRateLimiter(15, 5000);
 
     send({ type: "output", data: `Welcome, ${username}. Type "help" to get started.` });
 
@@ -28,6 +30,10 @@ export async function terminalWebSocket(app: FastifyInstance) {
         message = JSON.parse(raw.toString());
       } catch {
         return send({ type: "error", data: "Malformed message" });
+      }
+
+      if (!allowCommand()) {
+        return send({ type: "error", data: "Too many commands, slow down" });
       }
 
       const payload = (message as { payload?: unknown })?.payload;
