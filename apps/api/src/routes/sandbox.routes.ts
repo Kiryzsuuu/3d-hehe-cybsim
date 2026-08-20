@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import type { JwtPayload } from "@cybersim/types";
 import { createUserSandbox, stopUserSandbox, getUserSandboxStatus } from "../services/sandbox/sandbox.service.js";
 import { startDvwaForUser, stopDvwaForUser, getDvwaStatus } from "../services/sandbox/dvwa.service.js";
+import { describeDockerError } from "../services/sandbox/docker-error.js";
 
 export async function sandboxRoutes(app: FastifyInstance) {
   app.get("/api/sandbox", { onRequest: [app.authenticate] }, async (req, reply) => {
@@ -11,7 +12,8 @@ export async function sandboxRoutes(app: FastifyInstance) {
       return reply.send(status);
     } catch (err) {
       req.log.error(err);
-      return reply.status(502).send({ error: "Docker unavailable" });
+      const { status, message } = describeDockerError(err);
+      return reply.status(status).send({ error: message });
     }
   });
 
@@ -25,7 +27,8 @@ export async function sandboxRoutes(app: FastifyInstance) {
         return reply.send(status);
       } catch (err) {
         req.log.error(err);
-        return reply.status(502).send({ error: "Failed to start sandbox" });
+        const { status, message } = describeDockerError(err);
+        return reply.status(status).send({ error: message });
       }
     }
   );
@@ -37,7 +40,8 @@ export async function sandboxRoutes(app: FastifyInstance) {
       return reply.send(status);
     } catch (err) {
       req.log.error(err);
-      return reply.status(502).send({ error: "Failed to stop sandbox" });
+      const { status, message } = describeDockerError(err);
+      return reply.status(status).send({ error: message });
     }
   });
 
@@ -48,7 +52,8 @@ export async function sandboxRoutes(app: FastifyInstance) {
       return reply.send(status);
     } catch (err) {
       req.log.error(err);
-      return reply.status(502).send({ error: "Docker unavailable" });
+      const { status, message } = describeDockerError(err);
+      return reply.status(status).send({ error: message });
     }
   });
 
@@ -62,7 +67,8 @@ export async function sandboxRoutes(app: FastifyInstance) {
         return reply.send(status);
       } catch (err) {
         req.log.error(err);
-        return reply.status(502).send({ error: "Failed to start DVWA" });
+        const { status, message } = describeDockerError(err);
+        return reply.status(status).send({ error: message });
       }
     }
   );
@@ -74,7 +80,8 @@ export async function sandboxRoutes(app: FastifyInstance) {
       return reply.send(status);
     } catch (err) {
       req.log.error(err);
-      return reply.status(502).send({ error: "Failed to stop DVWA" });
+      const { status, message } = describeDockerError(err);
+      return reply.status(status).send({ error: message });
     }
   });
 }
