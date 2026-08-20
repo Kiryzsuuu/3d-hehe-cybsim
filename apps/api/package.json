@@ -12,7 +12,8 @@
     "db:migrate": "prisma migrate dev",
     "db:seed": "tsx src/db/seed.ts",
     "db:seed-admin": "tsx src/db/seed-admin.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "test": "vitest run"
   },
   "dependencies": {
     "@cybersim/cli-parser": "workspace:*",
@@ -35,6 +36,7 @@
     "@types/node": "^20.14.15",
     "prisma": "^5.20.0",
     "tsx": "^4.19.1",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.9"
   }
 }

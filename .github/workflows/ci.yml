@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck api
+        run: pnpm --filter @cybersim/api exec tsc --noEmit
+
+      - name: Typecheck web
+        run: pnpm --filter @cybersim/web exec tsc --noEmit
+
+      - name: Unit tests (api)
+        run: pnpm --filter @cybersim/api test
+
+      - name: Build api
+        run: pnpm --filter @cybersim/api build
+
+      - name: Build web
+        run: pnpm --filter @cybersim/web build
+        env:
+          # Build-time only: no page does server-side data fetching against
+          # the real API or database, so a placeholder is enough to satisfy
+          # anything that reads it at build time without needing repo secrets.
+          NEXT_PUBLIC_API_URL: "http://localhost:3001"

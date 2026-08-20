@@ -16,6 +16,7 @@ import { chatWebSocket } from "./websocket/chat.ws.js";
 import { presenceWebSocket } from "./websocket/presence.ws.js";
 import { roomWebSocket } from "./websocket/room.ws.js";
 import { terminalWebSocket } from "./websocket/terminal.ws.js";
+import { startSandboxReaper } from "./services/sandbox/reaper.js";
 
 const app = Fastify({ logger: true });
 
@@ -52,3 +53,8 @@ app.listen({ port, host: "0.0.0.0" }).catch((err) => {
   app.log.error(err);
   process.exit(1);
 });
+
+// Sweeps abandoned sandbox/DVWA containers (tab closed without hitting
+// /stop) every 15 minutes by default. Best-effort: failures are logged, not
+// fatal to the server.
+startSandboxReaper();
