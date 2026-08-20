@@ -3,6 +3,7 @@ import type { JwtPayload } from "@cybersim/types";
 import { prisma } from "../db/client.js";
 import { assertCanAccess, getWorldConversationId, sendMessage, ChatError } from "../services/chat/chat.service.js";
 import { createWsRateLimiter } from "./wsRateLimit.js";
+import { publish, onMessage, INSTANCE_ID } from "../services/redis/pubsub.js";
 
 interface ChatEvent {
   type: "message" | "error";
@@ -13,9 +14,13 @@ interface ChatEvent {
   createdAt?: string;
 }
 
-// Per-server-instance connection registry: userId -> sockets (a user can have
-// multiple tabs open). Fine for a single API instance; a multi-instance
-// deployment would need a pub/sub layer (Redis) to fan out across processes.
+const MESSAGE_CHANNEL = "chat:message";
+
+// Per-server-instance connection registry: userId -> sockets (a user can
+// have multiple tabs open). This alone only reaches users connected to THIS
+// process; MESSAGE_CHANNEL below fans a sent message out to every other
+// instance too, so a message still reaches a recipient connected elsewhere
+// behind a load balancer.
 const connectionsByUser = new Map<string, Set<any>>();
 
 function register(userId: string, socket: any) {
@@ -37,7 +42,35 @@ function sendTo(userId: string, event: ChatEvent) {
   for (const socket of set) socket.send(payload);
 }
 
+interface RelayedMessage {
+  event: ChatEvent;
+  recipientUserIds: string[] | "all";
+}
+
+let crossInstanceHandlerRegistered = false;
+
+// Registered once per process. Delivers a message sent on a DIFFERENT
+// instance to whichever of its recipients happen to be connected to this
+// one — this instance's own sends already reached its local sockets
+// directly at the point of sending (see the "message" handler below), so
+// self-published messages are skipped here to avoid double delivery.
+function registerCrossInstanceHandlerOnce() {
+  if (crossInstanceHandlerRegistered) return;
+  crossInstanceHandlerRegistered = true;
+
+  onMessage<RelayedMessage>(MESSAGE_CHANNEL, ({ event, recipientUserIds }, fromInstanceId) => {
+    if (fromInstanceId === INSTANCE_ID) return;
+    if (recipientUserIds === "all") {
+      for (const uid of connectionsByUser.keys()) sendTo(uid, event);
+    } else {
+      for (const uid of recipientUserIds) sendTo(uid, event);
+    }
+  }).catch((err) => console.error("[chat.ws] subscribe failed:", err));
+}
+
 export async function chatWebSocket(app: FastifyInstance) {
+  registerCrossInstanceHandlerOnce();
+
   app.get("/ws/chat", { websocket: true }, (socket, req) => {
     const token = (req.query as { token?: string })?.token;
     let payload: JwtPayload;
@@ -91,12 +124,17 @@ export async function chatWebSocket(app: FastifyInstance) {
         const worldId = await getWorldConversationId();
         if (conversationId === worldId) {
           for (const uid of connectionsByUser.keys()) sendTo(uid, event);
+          void publish<RelayedMessage>(MESSAGE_CHANNEL, { event, recipientUserIds: "all" });
         } else {
           const members = await prisma.conversationMember.findMany({
             where: { conversationId, status: "member" },
             select: { userId: true },
           });
           for (const m of members) sendTo(m.userId, event);
+          void publish<RelayedMessage>(MESSAGE_CHANNEL, {
+            event,
+            recipientUserIds: members.map((m) => m.userId),
+          });
         }
       } catch (err) {
         socket.send(
