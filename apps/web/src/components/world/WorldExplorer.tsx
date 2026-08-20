@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { Grid, Text } from "@react-three/drei";
 import * as THREE from "three";
+import { usePresenceSocket, type OtherPlayer } from "@/hooks/usePresenceSocket";
+import { useRequireAuth } from "@/hooks/useAuth";
 
 interface Station {
   id: string;
@@ -56,9 +58,11 @@ function StationMarker({ station, active }: { station: Station; active: boolean 
 function Player({
   positionRef,
   keysRef,
+  onMove,
 }: {
   positionRef: React.MutableRefObject<{ x: number; z: number }>;
   keysRef: React.MutableRefObject<Record<string, boolean>>;
+  onMove: (x: number, z: number) => void;
 }) {
   const meshRef = useRef<THREE.Mesh>(null);
   const { camera } = useThree();
@@ -90,6 +94,8 @@ function Player({
     const targetCamPos = new THREE.Vector3(positionRef.current.x, 9, positionRef.current.z + 9);
     camera.position.lerp(targetCamPos, Math.min(1, delta * 4));
     camera.lookAt(positionRef.current.x, 0, positionRef.current.z);
+
+    onMove(positionRef.current.x, positionRef.current.z);
   });
 
   return (
@@ -100,14 +106,42 @@ function Player({
   );
 }
 
+function OtherPlayerAvatar({ player }: { player: OtherPlayer }) {
+  const meshRef = useRef<THREE.Mesh>(null);
+
+  // Smoothly lerp toward the latest reported position each frame instead of
+  // snapping, since updates only arrive ~every 150ms over the socket.
+  useFrame((_, delta) => {
+    if (!meshRef.current) return;
+    meshRef.current.position.x = THREE.MathUtils.lerp(meshRef.current.position.x, player.x, Math.min(1, delta * 8));
+    meshRef.current.position.z = THREE.MathUtils.lerp(meshRef.current.position.z, player.z, Math.min(1, delta * 8));
+  });
+
+  return (
+    <group>
+      <mesh ref={meshRef} position={[player.x, 0.6, player.z]}>
+        <capsuleGeometry args={[0.4, 0.6, 4, 8]} />
+        <meshStandardMaterial color="#f472b6" />
+      </mesh>
+      <Text position={[player.x, 1.5, player.z]} fontSize={0.35} color="#f472b6" anchorX="center">
+        {player.username}
+      </Text>
+    </group>
+  );
+}
+
 function Scene({
   positionRef,
   keysRef,
   nearStation,
+  onMove,
+  others,
 }: {
   positionRef: React.MutableRefObject<{ x: number; z: number }>;
   keysRef: React.MutableRefObject<Record<string, boolean>>;
   nearStation: Station | null;
+  onMove: (x: number, z: number) => void;
+  others: OtherPlayer[];
 }) {
   return (
     <>
@@ -121,16 +155,21 @@ function Scene({
       {STATIONS.map((s) => (
         <StationMarker key={s.id} station={s} active={nearStation?.id === s.id} />
       ))}
-      <Player positionRef={positionRef} keysRef={keysRef} />
+      {others.map((p) => (
+        <OtherPlayerAvatar key={p.userId} player={p} />
+      ))}
+      <Player positionRef={positionRef} keysRef={keysRef} onMove={onMove} />
     </>
   );
 }
 
 export default function WorldExplorer() {
   const router = useRouter();
+  const { user } = useRequireAuth();
   const positionRef = useRef({ x: 0, z: 0 });
   const keysRef = useRef<Record<string, boolean>>({});
   const [nearStation, setNearStation] = useState<Station | null>(null);
+  const { others, reportPosition } = usePresenceSocket(user?.id);
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
@@ -166,12 +205,18 @@ export default function WorldExplorer() {
   return (
     <div className="relative h-[36rem] w-full overflow-hidden rounded-lg border border-gray-800 bg-black">
       <Canvas camera={{ position: [0, 9, 9], fov: 50 }}>
-        <Scene positionRef={positionRef} keysRef={keysRef} nearStation={nearStation} />
+        <Scene positionRef={positionRef} keysRef={keysRef} nearStation={nearStation} onMove={reportPosition} others={others} />
       </Canvas>
 
       <div className="pointer-events-none absolute left-4 top-4 rounded-md bg-black/60 px-3 py-2 text-xs text-gray-300">
         WASD / panah untuk jalan
       </div>
+
+      {others.length > 0 && (
+        <div className="pointer-events-none absolute left-4 top-16 rounded-md bg-black/60 px-3 py-2 text-xs text-pink-300">
+          {others.length} pemain lain online di World
+        </div>
+      )}
 
       <div className="pointer-events-none absolute bottom-4 right-4 flex flex-col gap-1 rounded-md bg-black/60 p-2 text-xs text-gray-400">
         {stationList.map((s) => (

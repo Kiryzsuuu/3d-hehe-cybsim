@@ -13,6 +13,7 @@ import { roomRoutes } from "./routes/room.routes.js";
 import { sandboxRoutes } from "./routes/sandbox.routes.js";
 import { scenarioRoutes } from "./routes/scenario.routes.js";
 import { chatWebSocket } from "./websocket/chat.ws.js";
+import { presenceWebSocket } from "./websocket/presence.ws.js";
 import { roomWebSocket } from "./websocket/room.ws.js";
 import { terminalWebSocket } from "./websocket/terminal.ws.js";
 
@@ -40,6 +41,7 @@ await app.register(roomRoutes);
 await app.register(sandboxRoutes);
 await app.register(scenarioRoutes);
 await app.register(chatWebSocket);
+await app.register(presenceWebSocket);
 await app.register(roomWebSocket);
 await app.register(terminalWebSocket);
 
