@@ -1,12 +1,43 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
 import * as THREE from "three";
 import { EMOTES, type OtherPlayer, type EmoteState } from "@/hooks/usePresenceSocket";
 
 const MOVE_SPEED = 6;
+
+// Fades a room in on mount instead of popping in fully rendered, matching
+// the same fade WorldExplorer does so entering/leaving a room reads as one
+// continuous transition rather than a hard cut between pages.
+export function useFadeIn() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return ready;
+}
+
+// Always-visible pill back to the World hub, fading the room out briefly
+// (via onBeforeLeave, which the room wires to its own fade state) before the
+// navigation fires so leaving a room feels the same as entering one.
+export function FpvBackLink({ onBeforeLeave }: { onBeforeLeave?: () => void }) {
+  const router = useRouter();
+  return (
+    <button
+      onClick={() => {
+        onBeforeLeave?.();
+        setTimeout(() => router.push("/world"), 200);
+      }}
+      className="absolute right-4 top-4 rounded-md border border-gray-700 bg-black/60 px-3 py-1.5 text-xs text-gray-300 transition-opacity hover:border-accent hover:text-accent"
+    >
+      ← Kembali ke World
+    </button>
+  );
+}
 
 export function useFpvKeys() {
   const keysRef = useRef<Record<string, boolean>>({});

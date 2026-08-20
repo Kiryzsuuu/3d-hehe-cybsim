@@ -36,6 +36,20 @@ const STATIONS: Station[] = [
 
 const PLAYER_SPEED = 8;
 const INTERACT_DISTANCE = 3;
+const POSITION_STORAGE_KEY = "cybersim_world_position";
+
+function loadStoredPosition(): { x: number; z: number } {
+  if (typeof window === "undefined") return { x: 0, z: 0 };
+  try {
+    const raw = sessionStorage.getItem(POSITION_STORAGE_KEY);
+    if (!raw) return { x: 0, z: 0 };
+    const parsed = JSON.parse(raw);
+    if (typeof parsed.x === "number" && typeof parsed.z === "number") return parsed;
+  } catch {
+    // ignore malformed storage
+  }
+  return { x: 0, z: 0 };
+}
 
 function StationMarker({ station, active }: { station: Station; active: boolean }) {
   return (
@@ -191,7 +205,8 @@ function Scene({
 export default function WorldExplorer() {
   const router = useRouter();
   const { user } = useRequireAuth();
-  const positionRef = useRef({ x: 0, z: 0 });
+  const positionRef = useRef(loadStoredPosition());
+  const [ready, setReady] = useState(false);
   const keysRef = useRef<Record<string, boolean>>({});
   const [nearStation, setNearStation] = useState<Station | null>(null);
   const [myColor, setMyColor] = useState("#22d3ee");
@@ -212,7 +227,8 @@ export default function WorldExplorer() {
       const key = e.key.toLowerCase();
       keysRef.current[key] = true;
       if (key === "e" && nearStation) {
-        router.push(nearStation.href);
+        setReady(false);
+        setTimeout(() => router.push(nearStation.href), 200);
       }
       if (key === "t") {
         e.preventDefault();
@@ -249,19 +265,33 @@ export default function WorldExplorer() {
 
   // Poll proximity on an interval instead of every R3F frame, cheap enough and
   // keeps this component free of a useFrame dependency outside the Canvas.
+  // Same interval also persists the player's spot so re-entering /world after
+  // a room visit resumes where they left off instead of snapping to spawn.
   useEffect(() => {
     const interval = setInterval(() => {
       const { x, z } = positionRef.current;
       const closest = STATIONS.find((s) => Math.hypot(s.x - x, s.z - z) < INTERACT_DISTANCE);
       setNearStation((prev) => (prev?.id === closest?.id ? prev : (closest ?? null)));
+      sessionStorage.setItem(POSITION_STORAGE_KEY, JSON.stringify({ x, z }));
     }, 150);
     return () => clearInterval(interval);
+  }, []);
+
+  // Fade the scene in on mount rather than popping in fully rendered, a
+  // small touch that makes returning from a room feel like arriving back
+  // rather than a hard cut.
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(raf);
   }, []);
 
   const stationList = useMemo(() => STATIONS, []);
 
   return (
-    <div className="relative h-[36rem] w-full overflow-hidden rounded-lg border border-gray-800 bg-black">
+    <div
+      className="relative h-[36rem] w-full overflow-hidden rounded-lg border border-gray-800 bg-black transition-opacity duration-500"
+      style={{ opacity: ready ? 1 : 0 }}
+    >
       <Canvas camera={{ position: [0, 9, 9], fov: 50 }}>
         <Scene
           positionRef={positionRef}

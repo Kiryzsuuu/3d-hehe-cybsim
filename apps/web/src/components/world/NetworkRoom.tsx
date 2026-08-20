@@ -13,9 +13,11 @@ import {
   FpvPresenceReporter,
   FpvOtherPlayers,
   FpvChatBox,
+  FpvBackLink,
   useFpvKeys,
   useFpvInteraction,
   useFpvEmoteKeys,
+  useFadeIn,
 } from "./fpv";
 import { useRequireAuth } from "@/hooks/useAuth";
 import { usePresenceSocket, type OtherPlayer, type EmoteState } from "@/hooks/usePresenceSocket";
@@ -145,6 +147,8 @@ export default function NetworkRoom() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [connectedPair, setConnectedPair] = useState<[string, string] | null>(null);
   const [bonusAwarded, setBonusAwarded] = useState(false);
+  const ready = useFadeIn();
+  const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
     startScenario(TARGET_SCENARIO_SLUG).catch(() => {});
@@ -186,7 +190,10 @@ export default function NetworkRoom() {
   const hoveredLabel = hoveredId && !connectedPair ? `Port ${DEVICES.find((d) => d.id === hoveredId)?.label}` : null;
 
   return (
-    <div className="relative h-[36rem] w-full overflow-hidden rounded-lg border border-gray-800 bg-black">
+    <div
+      className="relative h-[36rem] w-full overflow-hidden rounded-lg border border-gray-800 bg-black transition-opacity duration-500"
+      style={{ opacity: ready && !leaving ? 1 : 0 }}
+    >
       <Canvas camera={{ position: [0, 1.6, 0], fov: 70 }} onCreated={({ camera }) => (cameraRef.current = camera)}>
         <Scene
           keysRef={keysRef}
@@ -208,6 +215,7 @@ export default function NetworkRoom() {
         hoveredLabel={hoveredLabel}
       />
       <FpvChatBox locked={locked} onSend={sendChat} />
+      <FpvBackLink onBeforeLeave={() => setLeaving(true)} />
 
       {others.length > 0 && (
         <div className="pointer-events-none absolute left-4 top-4 rounded-md bg-black/60 px-3 py-2 text-xs text-pink-300">

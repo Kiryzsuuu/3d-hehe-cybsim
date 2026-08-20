@@ -19,9 +19,11 @@ import {
   FpvPresenceReporter,
   FpvOtherPlayers,
   FpvChatBox,
+  FpvBackLink,
   useFpvKeys,
   useFpvInteraction,
   useFpvEmoteKeys,
+  useFadeIn,
 } from "./fpv";
 import { useRequireAuth } from "@/hooks/useAuth";
 import { usePresenceSocket, type OtherPlayer, type EmoteState } from "@/hooks/usePresenceSocket";
@@ -118,6 +120,8 @@ export default function ServerConsoleRoom() {
   const [states, setStates] = useState<Record<string, ConsoleState>>({ sandbox: "off", dvwa: "off" });
   const [error, setError] = useState<string | null>(null);
   const [dvwaUrl, setDvwaUrl] = useState<string | null>(null);
+  const ready = useFadeIn();
+  const [leaving, setLeaving] = useState(false);
 
   useEffect(() => {
     getSandboxStatus()
@@ -171,7 +175,10 @@ export default function ServerConsoleRoom() {
     : null;
 
   return (
-    <div className="relative h-[36rem] w-full overflow-hidden rounded-lg border border-gray-800 bg-black">
+    <div
+      className="relative h-[36rem] w-full overflow-hidden rounded-lg border border-gray-800 bg-black transition-opacity duration-500"
+      style={{ opacity: ready && !leaving ? 1 : 0 }}
+    >
       <Canvas camera={{ position: [0, 1.6, 0], fov: 70 }} onCreated={({ camera }) => (cameraRef.current = camera)}>
         <Scene
           keysRef={keysRef}
@@ -192,6 +199,7 @@ export default function ServerConsoleRoom() {
         hoveredLabel={hoveredLabel}
       />
       <FpvChatBox locked={locked} onSend={sendChat} />
+      <FpvBackLink onBeforeLeave={() => setLeaving(true)} />
 
       {others.length > 0 && (
         <div className="pointer-events-none absolute left-4 top-4 rounded-md bg-black/60 px-3 py-2 text-xs text-pink-300">
