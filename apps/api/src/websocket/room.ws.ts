@@ -45,12 +45,24 @@ export async function roomWebSocket(app: FastifyInstance) {
       return;
     }
     const userId = payload.sub;
-    register(code, socket);
     const allowAction = createWsRateLimiter(10, 5000);
 
+    // getRoomState enforces membership (assertMember) internally, so it
+    // doubles as the access check here. The socket must only be added to
+    // socketsByRoomCode — and therefore only start receiving broadcastState
+    // pushes — once that check has actually passed; registering first and
+    // checking after (the previous bug) let anyone who knew a room code stay
+    // subscribed to that room's full state even after the membership check
+    // failed, since nothing ever unregistered them.
     getRoomState(code, userId)
-      .then((state) => socket.send(JSON.stringify({ type: "state", state } satisfies RoomEvent)))
-      .catch((err) => socket.send(JSON.stringify({ type: "error", body: err.message } satisfies RoomEvent)));
+      .then((state) => {
+        register(code, socket);
+        socket.send(JSON.stringify({ type: "state", state } satisfies RoomEvent));
+      })
+      .catch((err) => {
+        socket.send(JSON.stringify({ type: "error", body: err.message } satisfies RoomEvent));
+        socket.close();
+      });
 
     socket.on("message", async (raw: Buffer) => {
       let message: unknown;
